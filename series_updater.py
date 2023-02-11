@@ -3,7 +3,7 @@ import os
 import json
 import logging
 import argparse
-import uuid
+import yaml
 from yarl import URL
 from typing import List
 from logging.handlers import RotatingFileHandler
@@ -162,7 +162,12 @@ def main():
     ts = ArgsParser(desc='Awesome series updater for TorrServe', def_settings_file=None)
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
 
+    if ts.args.settings:
+        with open(ts.args.settings, 'r') as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+
     if ts.args.cleanup:
+        # ToDO: add cleanup after update series
         pass
 
     for i in torr_server.raw:

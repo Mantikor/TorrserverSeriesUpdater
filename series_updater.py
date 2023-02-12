@@ -1,19 +1,45 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# coding: utf8
+
+"""
+Copyright: (c) 2023, Streltsov Sergey, straltsou.siarhei@gmail.com
+init release 2023-02-10
+The program for update torrents with new episodes for series
+
+link to 4pda
+link to torrserver
+link to litr.cc
+
+mode1: update torrents on torrserver from litr.cc rss feed (torrents from rutor.info)
+mode2: update torrents on torrserver directly from rutor.info
+mode3: add new torrents from litr.cc rss feed to torrserver
+mode4: cleanup old torrents with viewed episodes on torrserver
+mode5: add new torrents from torrserver to litr.cc rss feed (need valid jwt token from litr.cc)
+
+you can combine:
+mode1+mode3+mode4
+"""
+
+
 import requests
 import os
+import sys
 import json
 import logging
 import argparse
 import yaml
 from yarl import URL
-from typing import List
 from logging.handlers import RotatingFileHandler
 
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 
-logging.basicConfig(format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s')
-logger = logging.getLogger('parsing_core')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
+                    handlers=[logging.StreamHandler()]
+                    )
 
 
 class TorrentsSource(object):
@@ -68,7 +94,8 @@ class TorrServer(TorrentsSource):
         self._server_url: URL = URL.build(scheme=self._server_url.scheme, host=self._server_url.host,
                                           port=kwargs.get('ts_port'))
         self.torrents_list: list = list()
-        self.raw = self._get_torrents_list()
+        self._raw = self._get_torrents_list()
+        self._raw2struct()
 
     def _get_torrents_list(self):
         resp = self._server_request(r_type='post', pref='torrents', data={'action': 'list'})
@@ -91,6 +118,30 @@ class TorrServer(TorrentsSource):
         data = {'action': 'set'} | viewed
         resp = self._server_request(r_type='post', pref='viewed', data=data)
         return resp
+
+    def _raw2struct(self):
+        for i in self._raw:
+            t_hash = i.get('hash')
+            if t_hash:
+                title = i.get('title')
+                poster = i.get('poster')
+                data = i.get('data')
+                try:
+                    data = json.loads(data)
+                    t_url = data.get('TSA', dict()).get('srcUrl')
+                except Exception as e:
+                    logger.warning(data)
+                    logger.warning(e)
+                    t_url = data
+                timestamp = i.get('timestamp')
+                t_hash = i.get('hash')
+                stat = i.get('stat')
+                stat_string = i.get('stat_string')
+                torrent_size = i.get('torrent_size')
+                torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
+                           't_hash': t_hash, 'stat': stat, 'stat_string': stat_string, 'torrent_size': torrent_size}
+                self.torrents_list.append(torrent)
+        self.logger.info(f'Torrserver, torrents got: {len(self.torrents_list)}')
 
 
 class RuTor(TorrentsSource):
@@ -119,7 +170,8 @@ class LitrCC(TorrentsSource):
         super().__init__(*args, **kwargs)
         self._server_url = URL(url)
         self.torrents_list: list = list()
-        self.raw = self._get_torrents_list()
+        self._raw = self._get_torrents_list()
+        self._raw2struct()
 
     def _get_torrents_list(self):
         resp = self._server_request(r_type='get')
@@ -134,9 +186,51 @@ class LitrCC(TorrentsSource):
     def add_torrent_to_listener(self, secret, group_id):
         pass
 
+    def _raw2struct(self):
+        for i in self._raw.get('items', list()):
+            t_id = i.get('id')
+            if t_id:
+                title = i.get('title')
+                url = i.get('url')
+                date_modified = i.get('date_modified')
+                image = i.get('image')
+                external_url = i.get('external_url')
+                torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
+                           'image': image, 'external_url': external_url}
+                self.torrents_list.append(torrent)
+        self.logger.info(f'Litr.cc mode: torrents got: {len(self.torrents_list)}')
+
+
+class Config:
+    def __init__(self, filename):
+        self._filename = filename
+        self.config = dict()
+        self.get_settings_path()
+        self.load_config()
+
+    def load_config(self):
+        with open(self._filename, 'r') as f:
+            try:
+                self.config = yaml.load(f, Loader=yaml.FullLoader)
+                logging.info(f'Settings loaded from file: {self._filename}')
+            except Exception as e:
+                logging.error(f'{e}, problem with {self._filename} file')
+                logging.warning('Will be used default settings!!!')
+
+    def save_config(self):
+        pass
+
+    def get_settings_path(self):
+        search_paths = ['', os.path.dirname(os.path.abspath(__file__)),
+                        os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
+        for search_path in search_paths:
+            full_path = os.path.join(search_path, self._filename)
+            if os.path.isfile(full_path):
+                self._filename = full_path
+                break
+
 
 class ArgsParser:
-
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
         self.parser.add_argument('--settings', action='store', dest='settings', type=str, default=def_settings_file,
@@ -160,55 +254,21 @@ class ArgsParser:
 
 def main():
     ts = ArgsParser(desc='Awesome series updater for TorrServe', def_settings_file=None)
-    torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
-
     if ts.args.settings:
-        with open(ts.args.settings, 'r') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
+        settings = Config(filename=ts.args.settings)
+
+    torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
 
     if ts.args.cleanup:
         # ToDO: add cleanup after update series
         pass
 
-    for i in torr_server.raw:
-        t_hash = i.get('hash')
-        if t_hash:
-            title = i.get('title')
-            poster = i.get('poster')
-            data = i.get('data')
-            try:
-                data = json.loads(data)
-                t_url = data.get('TSA', dict()).get('srcUrl')
-            except Exception as e:
-                logger.warning(data)
-                logger.warning(e)
-                t_url = data
-            timestamp = i.get('timestamp')
-            t_hash = i.get('hash')
-            stat = i.get('stat')
-            stat_string = i.get('stat_string')
-            torrent_size = i.get('torrent_size')
-            torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
-                       't_hash': t_hash, 'stat': stat, 'stat_string': stat_string, 'torrent_size': torrent_size}
-            torr_server.torrents_list.append(torrent)
-    torr_server.logger.info(f'Torrserver, torrents got: {len(torr_server.torrents_list)}')
-
     if ts.args.litrcc:
         litr_cc_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
         litr_cc.logger.info(f'Litr.cc mode: RSS uuid: {ts.args.litrcc}')
-        for i in litr_cc.raw.get('items', list()):
-            t_id = i.get('id')
-            if t_id:
-                title = i.get('title')
-                url = i.get('url')
-                date_modified = i.get('date_modified')
-                image = i.get('image')
-                external_url = i.get('external_url')
-                torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
-                           'image': image, 'external_url': external_url}
-                litr_cc.torrents_list.append(torrent)
-        litr_cc.logger.info(f'Litr.cc mode: torrents got: {len(litr_cc.torrents_list)}')
+
+        # update from litr.cc rss feed
         for torrent in litr_cc.torrents_list:
             rutor_id = RuTor.is_rutor_link(url=torrent.get('external_url'))
             if rutor_id:
@@ -240,7 +300,10 @@ def main():
                         if res.status_code == 200:
                             torr_server.logger.info(f'{idx} episode => set as viewed')
             else:
-                pass  # catch non-rutor torrent
+                # ToDO: catch non-rutor torrents
+                pass
+
+    # ToDO: save last valid token for next auth (refresh)
 
 
 if __name__ == '__main__':

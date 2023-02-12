@@ -1,0 +1,1 @@
+series_updater.py --litrcc _feed_uuid_ --ts_url _http://192.168.1.2_ --settings config.yaml

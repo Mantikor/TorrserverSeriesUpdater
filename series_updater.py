@@ -34,7 +34,7 @@ from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -113,6 +113,10 @@ class TorrServer(TorrentsSource):
     def add_torrent(self, torrent):
         data = {'action': 'add'} | torrent
         resp = self._server_request(r_type='post', pref='torrents', data=data)
+        return resp
+
+    def get_torrent(self, t_hash):
+        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'get', 'hash': t_hash})
         return resp
 
     def set_viewed(self, viewed):
@@ -272,7 +276,7 @@ def main():
         litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
         logging.info(f'Litr.cc mode: RSS uuid: {ts.args.litrcc}')
 
-        # update from litr.cc rss feed
+        # update futor torrents from litr.cc rss feed
         for litr_torrent in litr_cc.torrents_list:
             if litr_rutor_id := litr_torrent.get('rutor_id'):
                 hashes = list()
@@ -300,6 +304,14 @@ def main():
                         res = torr_server.set_viewed(viewed=viewed)
                         if res.status_code == 200:
                             logging.info(f'{idx} episode => set as viewed')
+                    res = torr_server.get_torrent(t_hash=link)
+                    if res.status_code == 200:
+                        for rem_hash in hashes:
+                            res = torr_server.remove_torrent(t_hash=rem_hash)
+                            if res.status_code == 200:
+                                logging.info(f'Old torrent with hash: {rem_hash} => deleted successfully')
+                            else:
+                                logging.warning(f'Old torrent with hash: {rem_hash} => deletion problems')
             else:
                 # ToDO: catch non-rutor torrents
                 pass

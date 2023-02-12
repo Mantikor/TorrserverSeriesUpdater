@@ -31,6 +31,7 @@ import argparse
 import yaml
 from yarl import URL
 from logging.handlers import RotatingFileHandler
+from json import JSONDecodeError
 
 
 __version__ = '0.0.2'
@@ -49,7 +50,7 @@ class TorrentsSource(object):
         self._server_url = 'http://localhost'
 
     def add_logger_handler(self, debug=False):
-        handlers = ['file']
+        handlers = [logging.StreamHandler()]
         if debug:
             log_level = logging.DEBUG
         else:
@@ -82,7 +83,7 @@ class TorrentsSource(object):
             else:
                 resp = requests.head(url=f'{self._server_url}{pref}', json=data, timeout=timeout)
         except Exception as e:
-            self.logger.error(e)
+            logging.error(e)
             raise Exception
         return resp
 
@@ -129,19 +130,21 @@ class TorrServer(TorrentsSource):
                 try:
                     data = json.loads(data)
                     t_url = data.get('TSA', dict()).get('srcUrl')
-                except Exception as e:
-                    logger.warning(data)
-                    logger.warning(e)
+                except (JSONDecodeError, TypeError) as e:
+                    logging.warning(data)
+                    logging.warning(e)
                     t_url = data
                 timestamp = i.get('timestamp')
                 t_hash = i.get('hash')
                 stat = i.get('stat')
                 stat_string = i.get('stat_string')
                 torrent_size = i.get('torrent_size')
+                rutor_id = RuTor.is_rutor_link(url=t_url)
                 torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
-                           't_hash': t_hash, 'stat': stat, 'stat_string': stat_string, 'torrent_size': torrent_size}
+                           't_hash': t_hash, 'stat': stat, 'stat_string': stat_string,
+                           'torrent_size': torrent_size, 'rutor_id': rutor_id}
                 self.torrents_list.append(torrent)
-        self.logger.info(f'Torrserver, torrents got: {len(self.torrents_list)}')
+        logging.info(f'Torrserver, torrents got: {len(self.torrents_list)}')
 
 
 class RuTor(TorrentsSource):
@@ -195,10 +198,11 @@ class LitrCC(TorrentsSource):
                 date_modified = i.get('date_modified')
                 image = i.get('image')
                 external_url = i.get('external_url')
+                rutor_id = RuTor.is_rutor_link(url=external_url)
                 torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
-                           'image': image, 'external_url': external_url}
+                           'image': image, 'external_url': external_url, 'rutor_id': rutor_id}
                 self.torrents_list.append(torrent)
-        self.logger.info(f'Litr.cc mode: torrents got: {len(self.torrents_list)}')
+        logging.info(f'Litr.cc mode: torrents got: {len(self.torrents_list)}')
 
 
 class Config:
@@ -266,39 +270,36 @@ def main():
     if ts.args.litrcc:
         litr_cc_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
-        litr_cc.logger.info(f'Litr.cc mode: RSS uuid: {ts.args.litrcc}')
+        logging.info(f'Litr.cc mode: RSS uuid: {ts.args.litrcc}')
 
         # update from litr.cc rss feed
-        for torrent in litr_cc.torrents_list:
-            rutor_id = RuTor.is_rutor_link(url=torrent.get('external_url'))
-            if rutor_id:
+        for litr_torrent in litr_cc.torrents_list:
+            if litr_rutor_id := litr_torrent.get('rutor_id'):
                 hashes = list()
                 indexes = set()
                 for ts_torrent in torr_server.torrents_list:
-                    ts_rutor_id = RuTor.is_rutor_link(url=ts_torrent.get('t_url'))
-                    if ts_rutor_id:
-                        if rutor_id == ts_rutor_id:
+                    if ts_rutor_id := ts_torrent.get('rutor_id'):
+                        if litr_rutor_id == ts_rutor_id:
                             t_hash = ts_torrent.get('t_hash')
                             hashes.append(t_hash)
                             viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
                             for vi in viewed_indexes_list:
                                 indexes.add(vi.get('file_index'))
-                link = torrent.get('id')
-                title = torrent.get('title')
-                poster = torrent.get('image')
-                data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{rutor_id}"}}}}'
-                # data = torrent.get('external_url')
+                link = litr_torrent.get('id')
+                title = litr_torrent.get('title')
+                poster = litr_torrent.get('image')
+                data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{litr_rutor_id}"}}}}'
                 if link not in hashes:
                     updated_torrent = {'link': f'magnet:?xt=urn:btih:{link}', 'title': title, 'poster': poster,
                                        'save_to_db': True, 'data': data}
                     res = torr_server.add_torrent(torrent=updated_torrent)
                     if res.status_code == 200:
-                        torr_server.logger.info(f'{title} => added/updated')
+                        logging.info(f'{title} => added/updated')
                     for idx in indexes:
                         viewed = {'hash': link, 'file_index': idx}
                         res = torr_server.set_viewed(viewed=viewed)
                         if res.status_code == 200:
-                            torr_server.logger.info(f'{idx} episode => set as viewed')
+                            logging.info(f'{idx} episode => set as viewed')
             else:
                 # ToDO: catch non-rutor torrents
                 pass

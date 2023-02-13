@@ -1,1 +1,1 @@
-docker build -t ts_series_updater:latest .
+docker build -t torrserver_series_updater:latest .

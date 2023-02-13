@@ -34,7 +34,7 @@ from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -277,7 +277,7 @@ def main():
         litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
         logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
 
-        # update futor torrents from litr.cc rss feed
+        # update rutor torrents from litr.cc rss feed
         for litr_torrent in litr_cc.torrents_list:
             if litr_rutor_id := litr_torrent.get('rutor_id'):
                 hashes = list()
@@ -316,7 +316,9 @@ def main():
                                 logging.warning(f'Old torrent with hash: {rem_hash} => deletion problems')
             else:
                 # ToDO: catch non-rutor torrents
-                pass
+                t_id = litr_torrent.get('id')
+                title = litr_torrent.get('title')
+                logging.info(f'Non rutor.info torrent found: {t_id}, {title}')
 
     # ToDO: save last valid token for next auth (refresh)
 

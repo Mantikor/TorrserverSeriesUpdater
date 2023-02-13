@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Build and Push Docker Image CI
 
 on:
   push:
@@ -6,17 +6,18 @@ on:
       - 'release-*'
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: docker login
       env:
         DOCKER_USER: ${{secrets.DOCKER_USER}}
-        DOCKER_PASSWORD: ${{secrets.DOCKER_PASS}}
-      run: |
-        docker login -u $DOCKER_USER -p $DOCKER_PASS
+        DOCKER_PASS: ${{secrets.DOCKER_PASS}}
+        REPO: ${{secrets.DOCKER_REPO}}
+      run: echo $DOCKER_PASS | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8}
+      run: docker build . --file Dockerfile -t ${{secrets.DOCKER_REPO}}:latest -t ${{secrets.DOCKER_REPO}}:${GITHUB_SHA::8}
     - name: Docker Push
-      run: docker push $REPO
+      run: docker push ${{secrets.DOCKER_REPO}}

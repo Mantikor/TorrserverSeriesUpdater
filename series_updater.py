@@ -47,7 +47,7 @@ class TorrentsSource(object):
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
         self.add_logger_handler(debug=kwargs.get('debug', False))
-        self._server_url = 'http://localhost'
+        self._server_url = kwargs.get('server_url', 'http://localhost')
 
     def add_logger_handler(self, debug=False):
         handlers = [logging.StreamHandler()]
@@ -70,7 +70,7 @@ class TorrentsSource(object):
                 file_handler.setFormatter(formatter)
                 logging.getLogger(prefix).addHandler(file_handler)
 
-    def _server_request(self, r_type='get', pref='', data=None, timeout=10):
+    def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10):
         if data is None:
             data = dict()
         if pref:

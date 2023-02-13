@@ -21,6 +21,6 @@ jobs:
         REPO: ${{secrets.DOCKER_REPO}}
       run: echo $DOCKER_PASS | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
     - name: Build the Docker image
-      run: docker build . --file Dockerfile -t $REPO:latest -t $REPO:${GITHUB_SHA::8}
+      run: docker build . --file Dockerfile -t $REPO -t $REPO:${GITHUB_SHA::8}
     - name: Docker Push
       run: docker push $REPO

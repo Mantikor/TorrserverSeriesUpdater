@@ -1,20 +1,22 @@
+name: Docker Image CI
+
 on:
   push:
     branches:
       - 'release-*'
 
 jobs:
-  docker:
-    name: Publish - Docker Hub
+  build:
     runs-on: ubuntu-latest
-    env:
-      REPO: ${{ secrets.DOCKER_REPO }}
     steps:
-      - name: Login to DockerHub
-        with:
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_PASS }}
-      - name: Build Docker image
-        run: docker build --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8} .
-      - name: Publish Docker image
-        run: docker push $REPO
+    - uses: actions/checkout@v2
+    - name: docker login
+      env:
+        DOCKER_USER: ${{secrets.DOCKER_USER}}
+        DOCKER_PASSWORD: ${{secrets.DOCKER_PASS}}
+      run: |
+        docker login -u $DOCKER_USER -p $DOCKER_PASS
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8}
+    - name: Docker Push
+      run: docker push $REPO

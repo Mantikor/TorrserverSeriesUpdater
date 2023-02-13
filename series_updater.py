@@ -29,12 +29,13 @@ import json
 import logging
 import argparse
 import yaml
+import re
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -154,13 +155,42 @@ class TorrServer(TorrentsSource):
 class RuTor(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        pass
+        self._server_url = 'http://rutor.info/torrent/'
 
-    def get_magnet(self):
-        pass
+    def get_torrent_page(self, torrent_id):
+        self._server_url = f'{self._server_url}{torrent_id}'
+        logging.info(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get')
+        return resp
 
-    def get_poster(self):
-        pass
+    @staticmethod
+    def get_magnet(text):
+        pattern = re.compile(r'<div id=\"download\"><a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(1)
+        else:
+            return None
+
+    @staticmethod
+    def get_title(text):
+        pattern = re.compile(r'<h1>(.*?)</h1>')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(1)
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<td><br /><img src=[\'"]?([^\'" >]+)', html)
+        if match:
+            return match.group(1)
+        else:
+            return None
 
     @staticmethod
     def is_rutor_link(url):
@@ -206,7 +236,7 @@ class LitrCC(TorrentsSource):
                 torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
                            'image': image, 'external_url': external_url, 'rutor_id': rutor_id}
                 self.torrents_list.append(torrent)
-        logging.info(f'Litr.cc mode: torrents got: {len(self.torrents_list)}')
+        logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
 
 
 class Config:
@@ -267,6 +297,25 @@ def main():
         settings = Config(filename=ts.args.settings)
 
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
+
+    for ts_torrent in torr_server.torrents_list:
+        if ts_rutor_id := ts_torrent.get('rutor_id'):
+            rt = RuTor()
+            resp = rt.get_torrent_page(torrent_id=ts_rutor_id)
+            if resp.status_code == 200:
+                new_hash = rt.get_magnet(text=resp.text)
+                new_title = rt.get_title(text=resp.text)
+                new_poster = rt.get_poster(text=resp.text)
+                old_hash = ts_torrent.get('t_hash')
+                title = ts_torrent.get('title')
+                logging.info(f'{title}')
+                logging.info(f'{new_title}')
+                logging.info(f'Old HASH: {old_hash}')
+                logging.info(f'New HASH: {new_hash}')
+                logging.info(f'Poster: {new_poster}')
+                logging.info('*'*150)
+
+    sys.exit(0)
 
     if ts.args.cleanup:
         # ToDO: add cleanup mode

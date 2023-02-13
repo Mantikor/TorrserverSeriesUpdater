@@ -19,7 +19,7 @@ jobs:
         DOCKER_USER: ${{secrets.DOCKER_USER}}
         DOCKER_PASS: ${{secrets.DOCKER_PASS}}
         REPO: ${{secrets.DOCKER_REPO}}
-      run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      run: echo ${{ secrets.DOCKER_PASS }} | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8}
     - name: Docker Push

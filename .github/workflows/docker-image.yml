@@ -1,0 +1,27 @@
+name: Docker Image CI2
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: docker login
+      env:
+        DOCKER_USER: ${{secrets.DOCKER_USER}}
+        DOCKER_PASSWORD: ${{secrets.DOCKER_PASS}}
+        REPO: ${{secrets.DOCKER_REPO}}
+      run: |
+        docker login -u $DOCKER_USER -p $DOCKER_PASS
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8}
+    - name: Docker Push
+      run: docker push $REPO

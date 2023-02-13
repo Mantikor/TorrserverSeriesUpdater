@@ -34,7 +34,7 @@ from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 
 
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -263,18 +263,19 @@ class ArgsParser:
 def main():
     ts = ArgsParser(desc='Awesome series updater for TorrServe', def_settings_file=None)
     if ts.args.settings:
+        # ToDO: add settings flow
         settings = Config(filename=ts.args.settings)
 
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
 
     if ts.args.cleanup:
-        # ToDO: add cleanup after update series
+        # ToDO: add cleanup mode
         pass
 
     if ts.args.litrcc:
         litr_cc_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
-        logging.info(f'Litr.cc mode: RSS uuid: {ts.args.litrcc}')
+        logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
 
         # update futor torrents from litr.cc rss feed
         for litr_torrent in litr_cc.torrents_list:

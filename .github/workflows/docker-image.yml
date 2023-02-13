@@ -19,7 +19,7 @@ jobs:
         DOCKER_USER: ${{secrets.DOCKER_USER}}
         DOCKER_PASS: ${{secrets.DOCKER_PASS}}
         REPO: ${{secrets.DOCKER_REPO}}
-      run: echo ${{ secrets.DOCKER_PASS }} | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+      run: echo ${{ secrets.DOCKER_PASS }} | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin https://hub.docker.com/repository/docker/mantik0r/torrserver_series_updater
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8}
     - name: Docker Push

@@ -11,8 +11,7 @@ jobs:
       REPO: ${{ secrets.DOCKER_REPO }}
     steps:
       - name: Login to Docker Hub
-        run: docker login -u ${{ secrets.DOCKER_USER }} 
-             -p ${{ secrets.DOCKER_PASS }}
+        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
       - name: Build Docker image
         run: docker build --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8} .
       - name: Publish Docker image

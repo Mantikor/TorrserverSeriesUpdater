@@ -186,7 +186,7 @@ class RuTor(TorrentsSource):
     @staticmethod
     def get_poster(text):
         html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-        match = re.search(r'<td><br /><img src=[\'"]?([^\'" >]+)', html)
+        match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', html)
         if match:
             return match.group(1)
         else:

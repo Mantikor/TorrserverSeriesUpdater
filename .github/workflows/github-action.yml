@@ -6,7 +6,7 @@ on:
 jobs:
   docker:
     name: Publish - Docker Hub
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       REPO: ${{ secrets.DOCKER_REPO }}
     steps:
@@ -14,6 +14,6 @@ jobs:
         run: docker login -u ${{ secrets.DOCKER_USER }} 
              -p ${{ secrets.DOCKER_PASS }}
       - name: Build Docker image
-        run: docker build -t $REPO:latest -t $REPO:${GITHUB_SHA::8} .
+        run: docker build --file Dockerfile --tag $REPO:latest --tag $REPO:${GITHUB_SHA::8} .
       - name: Publish Docker image
         run: docker push $REPO

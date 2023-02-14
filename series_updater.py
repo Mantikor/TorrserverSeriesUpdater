@@ -35,7 +35,7 @@ from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 
 
-__version__ = '0.0.7'
+__version__ = '0.1.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -151,6 +151,39 @@ class TorrServer(TorrentsSource):
                 self.torrents_list.append(torrent)
         logging.info(f'Torrserver, torrents got: {len(self.torrents_list)}')
 
+    def get_rutor_torrents(self):
+        torrents = dict()
+        for ts_torrent in self.torrents_list:
+            if ts_rutor_id := ts_torrent.get('rutor_id'):
+                lst_w_same_id = torrents.get(ts_rutor_id, list())
+                lst_w_same_id.append(ts_torrent)
+                torrents[ts_rutor_id] = lst_w_same_id
+        return torrents
+
+    def add_updated_torrent(self, updated_torrent, viewed_episodes):
+        res = self.add_torrent(torrent=updated_torrent)
+        title = updated_torrent.get('title')
+        t_hash = updated_torrent.get('hash')
+        if res.status_code == 200:
+            logging.info(f'{title} => added/updated')
+        for idx in viewed_episodes:
+            viewed = {'hash': t_hash, 'file_index': idx}
+            res = self.set_viewed(viewed=viewed)
+            if res.status_code == 200:
+                logging.info(f'{idx} episode => set as viewed')
+        res = self.get_torrent(t_hash=t_hash)
+        return res.status_code
+
+    def cleanup_torrents(self, hashes=None):
+        if hashes:
+            for hash_to_remove in hashes:
+                res = self.remove_torrent(t_hash=hash_to_remove)
+                res2 = self.get_torrent(t_hash=hash_to_remove)
+                if (res.status_code == 200) and (res2.status_code == 404):
+                    logging.info(f'Old torrent with hash: {hash_to_remove} => deleted successfully')
+                else:
+                    logging.warning(f'Old torrent with hash: {hash_to_remove} => deletion problems')
+
 
 class RuTor(TorrentsSource):
     def __init__(self, *args, **kwargs):
@@ -225,6 +258,7 @@ class LitrCC(TorrentsSource):
 
     def _raw2struct(self):
         for i in self._raw.get('items', list()):
+            # ToDO: RSS contains new and old torrents (not only new), need to catch newest one
             t_id = i.get('id')
             if t_id:
                 title = i.get('title')
@@ -279,6 +313,8 @@ class ArgsParser:
                                  help='torrserver port')
         self.parser.add_argument('--litrcc', action='store', dest='litrcc', type=str, default='',
                                  help='feed uuid from litr.cc')
+        self.parser.add_argument('--rutor', action='store_true', dest='rutor', default=False,
+                                 help='update torrents from rutor.info')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -291,7 +327,9 @@ class ArgsParser:
 
 
 def main():
-    ts = ArgsParser(desc='Awesome series updater for TorrServe', def_settings_file=None)
+    desc = f'Awesome series updater for TorrServe, version {__version__}'
+    logging.info(desc)
+    ts = ArgsParser(desc=desc, def_settings_file=None)
     if ts.args.settings:
         # ToDO: add settings flow
         settings = Config(filename=ts.args.settings)
@@ -301,30 +339,45 @@ def main():
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    for ts_torrent in torr_server.torrents_list:
-        if ts_rutor_id := ts_torrent.get('rutor_id'):
+    if ts.args.rutor:
+        ts_rutor_torrents = torr_server.get_rutor_torrents()
+        for ts_rutor_id, torrents_list in ts_rutor_torrents.items():
             rt = RuTor()
             resp = rt.get_torrent_page(torrent_id=ts_rutor_id)
             if resp.status_code == 200:
-                new_hash = rt.get_magnet(text=resp.text)
-                new_title = rt.get_title(text=resp.text)
-                new_poster = rt.get_poster(text=resp.text)
-                old_hash = ts_torrent.get('t_hash')
-                title = ts_torrent.get('title')
-                logging.info(f'{title}')
-                logging.info(f'{new_title}')
-                logging.info(f'Old HASH: {old_hash}')
-                logging.info(f'New HASH: {new_hash}')
-                logging.info(f'Poster: {new_poster}')
-                logging.info('*'*150)
+                rt_title = rt.get_title(text=resp.text)
+                rt_hash = rt.get_magnet(text=resp.text)
+                rt_poster = rt.get_poster(text=resp.text)
+                logging.info(f'Checking: {rt_title}')
+                logging.debug(f'Poster: {rt_poster}')
+                logging.debug(f'New HASH: {rt_hash}')
+                hashes = list()
+                for i in torrents_list:
+                    old_hash = i.get('t_hash')
+                    hashes.append(old_hash)
+                if rt_hash not in hashes:
+                    logging.info(f'Found update: {rt_hash}')
+                    indexes = set()
+                    data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{ts_rutor_id}"}}}}'
+                    for t_hash in hashes:
+                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
+                        for vi in viewed_indexes_list:
+                            indexes.add(vi.get('file_index'))
 
-    sys.exit(0)
+                    updated_torrent = {'link': f'magnet:?xt=urn:btih:{rt_hash}', 'title': rt_title, 'poster': rt_poster,
+                                       'save_to_db': True, 'data': data, 'hash': rt_hash}
+                    torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
+                    torr_server.cleanup_torrents(hashes=hashes)
+                else:
+                    logging.info(f'No updates found: {rt_hash}')
 
     if ts.args.cleanup:
         # ToDO: add cleanup mode
-        pass
+        torr_server.cleanup_torrents()
 
     if ts.args.litrcc:
+        logging.warning('RSS contains new and old torrents (not only new), need to catch newest one, fix script!!!')
+        # sys.exit()
         litr_cc_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
         logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
@@ -334,38 +387,55 @@ def main():
             if litr_rutor_id := litr_torrent.get('rutor_id'):
                 hashes = list()
                 indexes = set()
-                for ts_torrent in torr_server.torrents_list:
-                    if ts_rutor_id := ts_torrent.get('rutor_id'):
-                        if litr_rutor_id == ts_rutor_id:
-                            t_hash = ts_torrent.get('t_hash')
-                            hashes.append(t_hash)
-                            viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
-                            for vi in viewed_indexes_list:
-                                indexes.add(vi.get('file_index'))
+                ts_rutor_torrents = torr_server.get_rutor_torrents()
+                if ts_rutor_torrents := ts_rutor_torrents.get(litr_rutor_id):
+                    for r_torrent in ts_rutor_torrents:
+                        t_hash = r_torrent.get('t_hash')
+                        hashes.append(t_hash)
+                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
+                        for vi in viewed_indexes_list:
+                            indexes.add(vi.get('file_index'))
+
+                # for ts_torrent in torr_server.torrents_list:
+                #     if ts_rutor_id := ts_torrent.get('rutor_id'):
+                #         if litr_rutor_id == ts_rutor_id:
+                #             t_hash = ts_torrent.get('t_hash')
+                #             hashes.append(t_hash)
+                #             viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
+                #             for vi in viewed_indexes_list:
+                #                 indexes.add(vi.get('file_index'))
+
                 link = litr_torrent.get('id')
                 title = litr_torrent.get('title')
                 poster = litr_torrent.get('image')
                 data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{litr_rutor_id}"}}}}'
                 if link not in hashes:
                     updated_torrent = {'link': f'magnet:?xt=urn:btih:{link}', 'title': title, 'poster': poster,
-                                       'save_to_db': True, 'data': data}
-                    res = torr_server.add_torrent(torrent=updated_torrent)
-                    if res.status_code == 200:
-                        logging.info(f'{title} => added/updated')
-                    for idx in indexes:
-                        viewed = {'hash': link, 'file_index': idx}
-                        res = torr_server.set_viewed(viewed=viewed)
-                        if res.status_code == 200:
-                            logging.info(f'{idx} episode => set as viewed')
-                    res = torr_server.get_torrent(t_hash=link)
-                    if res.status_code == 200:
-                        for rem_hash in hashes:
-                            res = torr_server.remove_torrent(t_hash=rem_hash)
-                            res2 = torr_server.get_torrent(t_hash=rem_hash)
-                            if (res.status_code == 200) and (res2.status_code == 200):
-                                logging.info(f'Old torrent with hash: {rem_hash} => deleted successfully')
-                            else:
-                                logging.warning(f'Old torrent with hash: {rem_hash} => deletion problems')
+                                       'save_to_db': True, 'data': data, 'hash': link}
+                    torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
+                    torr_server.cleanup_torrents(hashes=hashes)
+
+
+
+                    # updated_torrent = {'link': f'magnet:?xt=urn:btih:{link}', 'title': title, 'poster': poster,
+                    #                    'save_to_db': True, 'data': data}
+                    # res = torr_server.add_torrent(torrent=updated_torrent)
+                    # if res.status_code == 200:
+                    #     logging.info(f'{title} => added/updated')
+                    # for idx in indexes:
+                    #     viewed = {'hash': link, 'file_index': idx}
+                    #     res = torr_server.set_viewed(viewed=viewed)
+                    #     if res.status_code == 200:
+                    #         logging.info(f'{idx} episode => set as viewed')
+                    # res = torr_server.get_torrent(t_hash=link)
+                    # if res.status_code == 200:
+                    #     for rem_hash in hashes:
+                    #         res = torr_server.remove_torrent(t_hash=rem_hash)
+                    #         res2 = torr_server.get_torrent(t_hash=rem_hash)
+                    #         if (res.status_code == 200) and (res2.status_code == 200):
+                    #             logging.info(f'Old torrent with hash: {rem_hash} => deleted successfully')
+                    #         else:
+                    #             logging.warning(f'Old torrent with hash: {rem_hash} => deletion problems')
             else:
                 # ToDO: catch non-rutor torrents
                 t_id = litr_torrent.get('id')

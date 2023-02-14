@@ -46,9 +46,9 @@ logging.basicConfig(level=logging.INFO,
 
 class TorrentsSource(object):
     def __init__(self, *args, **kwargs):
-        self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
-        self.add_logger_handler(debug=kwargs.get('debug', False))
-        self._server_url = kwargs.get('server_url', 'http://localhost')
+        # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
+        # self.add_logger_handler(debug=kwargs.get('debug', False))
+        self._server_url = kwargs.get('server_url', 'http://127.0.0.1')
 
     def add_logger_handler(self, debug=False):
         handlers = [logging.StreamHandler()]
@@ -159,7 +159,7 @@ class RuTor(TorrentsSource):
 
     def get_torrent_page(self, torrent_id):
         self._server_url = f'{self._server_url}{torrent_id}'
-        logging.info(f'URL: {self._server_url}')
+        logging.debug(f'URL: {self._server_url}')
         resp = self._server_request(r_type='get')
         return resp
 
@@ -273,7 +273,7 @@ class ArgsParser:
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
         self.parser.add_argument('--settings', action='store', dest='settings', type=str, default=def_settings_file,
                                  help='settings file for future purposes')
-        self.parser.add_argument('--ts_url', action='store', dest='ts_url', type=str, default='http://localhost',
+        self.parser.add_argument('--ts_url', action='store', dest='ts_url', type=str, default='http://127.0.0.1',
                                  help='torrserver url')
         self.parser.add_argument('--ts_port', action='store', dest='ts_port', type=int, default=8090,
                                  help='torrserver port')
@@ -297,6 +297,9 @@ def main():
         settings = Config(filename=ts.args.settings)
 
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
+
+    if ts.args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     for ts_torrent in torr_server.torrents_list:
         if ts_rutor_id := ts_torrent.get('rutor_id'):

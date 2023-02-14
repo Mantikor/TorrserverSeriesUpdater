@@ -7,18 +7,11 @@ Copyright: (c) 2023, Streltsov Sergey, straltsou.siarhei@gmail.com
 init release 2023-02-10
 The program for update torrents with new episodes for series
 
-link to 4pda
-link to torrserver
-link to litr.cc
+[TorrServer](https://github.com/YouROK/TorrServer) by YouROK
+[TorrServer Adder for Chrome](https://chrome.google.com/webstore/detail/torrserver-adder/ihphookhabmjbgccflngglmidjloeefg)
+[TorrServer Adder for Firefox](https://addons.mozilla.org/ru/firefox/addon/torrserver-adder/)
+[TorrServe client on 4PDA](https://4pda.to/forum/index.php?showtopic=889960)
 
-mode1: update torrents on torrserver from litr.cc rss feed (torrents from rutor.info)
-mode2: update torrents on torrserver directly from rutor.info
-mode3: add new torrents from litr.cc rss feed to torrserver
-mode4: cleanup old torrents with viewed episodes on torrserver
-mode5: add new torrents from torrserver to litr.cc rss feed (need valid jwt token from litr.cc)
-
-you can combine:
-mode1+mode3+mode4
 """
 
 
@@ -33,9 +26,10 @@ import re
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
+from operator import itemgetter
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -183,6 +177,8 @@ class TorrServer(TorrentsSource):
                     logging.info(f'Old torrent with hash: {hash_to_remove} => deleted successfully')
                 else:
                     logging.warning(f'Old torrent with hash: {hash_to_remove} => deletion problems')
+        else:
+            logging.warning(f'Permanent cleanup mode? will be deleted torrents duplicates')
 
 
 class RuTor(TorrentsSource):
@@ -271,6 +267,15 @@ class LitrCC(TorrentsSource):
                            'image': image, 'external_url': external_url, 'rutor_id': rutor_id}
                 self.torrents_list.append(torrent)
         logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
+
+    def get_rutor_torrents(self):
+        torrents = dict()
+        for litrcc_torrent in self.torrents_list:
+            if lcc_rutor_id := litrcc_torrent.get('rutor_id'):
+                lst_w_same_id = torrents.get(lcc_rutor_id, list())
+                lst_w_same_id.append(litrcc_torrent)
+                torrents[lcc_rutor_id] = lst_w_same_id
+        return torrents
 
 
 class Config:
@@ -376,71 +381,40 @@ def main():
         torr_server.cleanup_torrents()
 
     if ts.args.litrcc:
-        logging.warning('RSS contains new and old torrents (not only new), need to catch newest one, fix script!!!')
-        # sys.exit()
-        litr_cc_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
-        litr_cc = LitrCC(url=litr_cc_url, debug=ts.args.debug)
+        litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
+        litrcc = LitrCC(url=litrcc_rss_feed_url)
         logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
-
-        # update rutor torrents from litr.cc rss feed
-        for litr_torrent in litr_cc.torrents_list:
-            if litr_rutor_id := litr_torrent.get('rutor_id'):
-                hashes = list()
+        litrcc_rutor_torrents = litrcc.get_rutor_torrents()
+        ts_rutor_torrents = torr_server.get_rutor_torrents()
+        for lcc_rutor_id, lcc_torrent_list in litrcc_rutor_torrents.items():
+            sorted_lst = sorted(lcc_torrent_list, key=itemgetter('date_modified'), reverse=True)
+            litrcc_rutor_torrents[lcc_rutor_id] = sorted_lst
+            ts_torrents_list = ts_rutor_torrents.get(lcc_rutor_id, list())
+            hashes = list()
+            for i in ts_torrents_list:
+                old_hash = i.get('t_hash')
+                hashes.append(old_hash)
+            lcc_rutor_torrent = litrcc_rutor_torrents[lcc_rutor_id][0]
+            lcc_link = lcc_rutor_torrent.get('id')
+            lcc_title = lcc_rutor_torrent.get('title')
+            lcc_poster = lcc_rutor_torrent.get('image')
+            logging.info(f'Checking: {lcc_title}')
+            logging.debug(f'Poster: {lcc_poster}')
+            logging.debug(f'New HASH: {lcc_link}')
+            if lcc_link not in hashes:
+                logging.info(f'Found update: {lcc_link}')
                 indexes = set()
-                ts_rutor_torrents = torr_server.get_rutor_torrents()
-                if ts_rutor_torrents := ts_rutor_torrents.get(litr_rutor_id):
-                    for r_torrent in ts_rutor_torrents:
-                        t_hash = r_torrent.get('t_hash')
-                        hashes.append(t_hash)
-                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
-                        for vi in viewed_indexes_list:
-                            indexes.add(vi.get('file_index'))
-
-                # for ts_torrent in torr_server.torrents_list:
-                #     if ts_rutor_id := ts_torrent.get('rutor_id'):
-                #         if litr_rutor_id == ts_rutor_id:
-                #             t_hash = ts_torrent.get('t_hash')
-                #             hashes.append(t_hash)
-                #             viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
-                #             for vi in viewed_indexes_list:
-                #                 indexes.add(vi.get('file_index'))
-
-                link = litr_torrent.get('id')
-                title = litr_torrent.get('title')
-                poster = litr_torrent.get('image')
-                data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{litr_rutor_id}"}}}}'
-                if link not in hashes:
-                    updated_torrent = {'link': f'magnet:?xt=urn:btih:{link}', 'title': title, 'poster': poster,
-                                       'save_to_db': True, 'data': data, 'hash': link}
-                    torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
-                    torr_server.cleanup_torrents(hashes=hashes)
-
-
-
-                    # updated_torrent = {'link': f'magnet:?xt=urn:btih:{link}', 'title': title, 'poster': poster,
-                    #                    'save_to_db': True, 'data': data}
-                    # res = torr_server.add_torrent(torrent=updated_torrent)
-                    # if res.status_code == 200:
-                    #     logging.info(f'{title} => added/updated')
-                    # for idx in indexes:
-                    #     viewed = {'hash': link, 'file_index': idx}
-                    #     res = torr_server.set_viewed(viewed=viewed)
-                    #     if res.status_code == 200:
-                    #         logging.info(f'{idx} episode => set as viewed')
-                    # res = torr_server.get_torrent(t_hash=link)
-                    # if res.status_code == 200:
-                    #     for rem_hash in hashes:
-                    #         res = torr_server.remove_torrent(t_hash=rem_hash)
-                    #         res2 = torr_server.get_torrent(t_hash=rem_hash)
-                    #         if (res.status_code == 200) and (res2.status_code == 200):
-                    #             logging.info(f'Old torrent with hash: {rem_hash} => deleted successfully')
-                    #         else:
-                    #             logging.warning(f'Old torrent with hash: {rem_hash} => deletion problems')
+                data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{lcc_rutor_id}"}}}}'
+                for t_hash in hashes:
+                    viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
+                    for vi in viewed_indexes_list:
+                        indexes.add(vi.get('file_index'))
+                updated_torrent = {'link': f'magnet:?xt=urn:btih:{lcc_link}', 'title': lcc_title, 'poster': lcc_poster,
+                                   'save_to_db': True, 'data': data, 'hash': lcc_link}
+                torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
+                torr_server.cleanup_torrents(hashes=hashes)
             else:
-                # ToDO: catch non-rutor torrents
-                t_id = litr_torrent.get('id')
-                title = litr_torrent.get('title')
-                logging.info(f'Non rutor.info torrent found: {t_id}, {title}')
+                logging.info(f'No new episodes found: {lcc_link}')
 
     # ToDO: save last valid token for next auth (refresh)
 

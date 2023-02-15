@@ -1,23 +1,61 @@
-[![Docker Image](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image.yml)
+[![Docker Image release](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml)
 
 # Updater for torrents with new episodes of series on TorrServer from Litr.cc or Rutor
+
+## Russian/Русский
+
+Программа для обновления торрентов в TorrServer by YouROK. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Сейчас программа может работать в двух режимах:
+
+1. обновлять торренты напрямую с Rutor (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServe, определяется, какие из них добавлены с Rutor, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
+2. обновлять торренты с RSS ленты Litr.cc (нужна регистрация на сайте, после чего взять UUID для RSS ленты и указать в параметрах при запуске программы), на данный момент поддерживаются только торренты, добавленные с Rutor, торрент из RSS ленты будет либо обновлен, либо автоматически добавлен в TorrServer, если его там нет.
+
+Режим cleanup для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее - пока не доделан, поэтому при использовании ключа --cleanup выдастся предупреждение и ничего не произойдет. Возможно в дальнейшем будет поддержка других трэкеров для Litr.cc RSS ленты.
+
+Программа распространяется как есть, баги и предложения по улучшению просьба добавлять в issues или писать на почту.
+
+Процесс использования выглядит так: вы добавляете торрент в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Пока поддерживаются только раздачи с Rutor.
 
 ## Installation
 
 ### Docker container
 
+You need [Docker](https://docs.docker.com/engine/install/) preinstalled
 ```
 sudo docker pull mantik0r/torrserver_series_updater:latest
 ```
 
 ### Python script
 
+You need [Python 3.11](https://www.python.org/downloads/) or higher preinstalled
+
+download archive with release or clone git repo
+
+install requirements
+```
+pip3 install requirements.txt
+```
+run script
+```
+python series_updater.py --litrcc RSS_FEED_UUID --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+```
+or
+```
+python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+```
+
+
 ## Running
 
 ### Docker container
 
+#### Run update from Litr.cc
 ```
 sudo docker run --rm torrserver_series_updater:latest python series_updater.py --litrcc RSS_FEED_UUID --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+```
+
+#### Run update from Rutor
+```
+sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
 **RSS_FEED_UUID**, like as 21100112-ffff-aaaa-cccc-e00110011fff - Litr.cc RSS feed identifier

@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -79,7 +79,9 @@ class TorrentsSource(object):
                 resp = requests.head(url=f'{self._server_url}{pref}', json=data, timeout=timeout)
         except Exception as e:
             logging.error(e)
-            raise Exception
+            logging.error(f'Connection problems with {self._server_url}{pref}')
+            # raise Exception
+            sys.exit(1)
         return resp
 
 
@@ -332,7 +334,7 @@ class ArgsParser:
 
 
 def main():
-    desc = f'Awesome series updater for TorrServe, version {__version__}'
+    desc = f'Awesome series updater for TorrServer, version {__version__}'
     logging.info(desc)
     ts = ArgsParser(desc=desc, def_settings_file=None)
     if ts.args.settings:

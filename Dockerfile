@@ -1,4 +1,5 @@
 FROM python:3.11-slim
+MAINTAINER Mantikor <straltsou.siarhei@gmail.com>
 
 RUN ["apt-get", "update"]
 RUN ["apt-get", "upgrade", "-y"]

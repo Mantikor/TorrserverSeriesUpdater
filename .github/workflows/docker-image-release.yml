@@ -8,16 +8,29 @@ on:
 jobs:
 
   build:
+
     runs-on: ubuntu-latest
+
+    env:
+      DOCKER_USER: ${{ secrets.DOCKER_USER }}
+      DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
+      DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
+
     steps:
     - uses: actions/checkout@v3
-    - name: docker login
-      env:
-        DOCKER_USER: ${{ secrets.DOCKER_USER }}
-        DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-        REPO: ${{ secrets.DOCKER_REPO }}
-      run: echo $DOCKER_PASS | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+
+    - id: string
+      uses: ASzc/change-string-case-action@v1
+      with:
+        string: ${{ github.event.release.tag_name }}
+    - run: echo "RELEASE_TAG=$(echo "${{ steps.string.outputs.lowercase }}")" >> $GITHUB_ENV
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Docker login
+      run: echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+
     - name: Build the Docker image
-      run: docker build . --file Dockerfile -t ${{ secrets.DOCKER_USER }}/${{ secrets.DOCKER_REPO }}:latest
-    - name: Docker Push
-      run: docker push ${{ secrets.DOCKER_USER }}/${{ secrets.DOCKER_REPO }}:latest
+      run: docker buildx build . --push --file Dockerfile --tag $DOCKER_USER/$DOCKER_REPO --tag $DOCKER_USER/$DOCKER_REPO:$RELEASE_TAG --platform linux/amd64,linux/arm64,linux/arm/v7

@@ -182,6 +182,10 @@ class TorrServer(TorrentsSource):
         else:
             logging.warning(f'Permanent cleanup mode? will be deleted torrents duplicates')
 
+    def get_torrent_stat(self, t_hash):
+        resp = self._server_request(r_type='get', pref=f'stream/fname?link={t_hash}&stat')
+        return resp
+
 
 class RuTor(TorrentsSource):
     def __init__(self, *args, **kwargs):

@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.1.3'
+__version__ = '0.2.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -71,12 +71,14 @@ class TorrentsSource(object):
         if pref:
             pref = f'/{pref}'
         try:
+            url = f'{self._server_url}{pref}'
+            logging.debug(url)
             if r_type == 'get':
-                resp = requests.get(url=f'{self._server_url}{pref}', json=data, timeout=timeout)
+                resp = requests.get(url=url, timeout=timeout)
             elif r_type == 'post':
-                resp = requests.post(url=f'{self._server_url}{pref}', json=data, timeout=timeout)
+                resp = requests.post(url=url, json=data, timeout=timeout)
             else:
-                resp = requests.head(url=f'{self._server_url}{pref}', json=data, timeout=timeout)
+                resp = requests.head(url=url, json=data, timeout=timeout)
         except Exception as e:
             logging.error(e)
             logging.error(f'Connection problems with {self._server_url}{pref}')
@@ -170,21 +172,54 @@ class TorrServer(TorrentsSource):
         res = self.get_torrent(t_hash=t_hash)
         return res.status_code
 
-    def cleanup_torrents(self, hashes=None):
-        if hashes:
-            for hash_to_remove in hashes:
-                res = self.remove_torrent(t_hash=hash_to_remove)
-                res2 = self.get_torrent(t_hash=hash_to_remove)
-                if (res.status_code == 200) and (res2.status_code == 404):
-                    logging.info(f'Old torrent with hash: {hash_to_remove} => deleted successfully')
-                else:
-                    logging.warning(f'Old torrent with hash: {hash_to_remove} => deletion problems')
-        else:
-            logging.warning(f'Permanent cleanup mode? will be deleted torrents duplicates')
-
     def get_torrent_stat(self, t_hash):
         resp = self._server_request(r_type='get', pref=f'stream/fname?link={t_hash}&stat')
         return resp
+
+    def delete_torrent_with_check(self, t_hash):
+        res = self.remove_torrent(t_hash=t_hash)
+        res2 = self.get_torrent(t_hash=t_hash)
+        if (res.status_code == 200) and (res2.status_code == 404):
+            logging.info(f'Old torrent with hash: {t_hash} => deleted successfully')
+        else:
+            logging.warning(f'Old torrent with hash: {t_hash} => deletion problems')
+
+    def cleanup_torrents(self, hashes=None):
+        if hashes:
+            for hash_to_remove in hashes:
+                self.delete_torrent_with_check(t_hash=hash_to_remove)
+        else:
+            logging.warning(f'Permanent cleanup mode!!! Will be deleted torrents duplicates.')
+            rutor_torrents = self.get_rutor_torrents()
+            logging.info(f'{len(rutor_torrents)} torrents from Rutor found.')
+            duplicated = 0
+            for rutor_id, torrents_lst in rutor_torrents.items():
+                if len(torrents_lst) > 1:
+                    duplicated += 1
+                    logging.info(f'ID: {rutor_id}, {len(torrents_lst)} copies found.')
+                    doubles = list()
+                    for torrent in torrents_lst:
+                        logging.debug(torrent)
+                        t_hash = torrent.get('t_hash')
+                        stat_resp = self.get_torrent_stat(t_hash=t_hash)
+                        if stat_resp.status_code == 200:
+                            stat_json = stat_resp.json()
+                            if stat_json:
+                                title = stat_json.get('title')
+                                file_stats = stat_json.get('file_stats', list())
+                                logging.info(f'{title} ==> {len(file_stats)} series.')
+                                doubles.append({'hash': t_hash, 'title': title, 'file_stats': file_stats})
+                        else:
+                            logging.error(
+                                f'Error getting info about torrent file list, STATUS_CODE={stat_resp.status_code}')
+                    logging.info(f'Will search newest one.')
+                    doubles = sorted(doubles, key=lambda d: len(d['file_stats']), reverse=True)
+                    while len(doubles) > 1:
+                        deletion_candidate = doubles.pop(-1)
+                        logging.debug(deletion_candidate)
+                        self.delete_torrent_with_check(t_hash=deletion_candidate.get('hash'))
+            if not duplicated:
+                logging.info(f'There are no duplicates found. Have a nice day!')
 
 
 class RuTor(TorrentsSource):

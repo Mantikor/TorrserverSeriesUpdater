@@ -29,13 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.2.0'
-
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
-                    handlers=[logging.StreamHandler()]
-                    )
+__version__ = '0.2.1'
 
 
 class TorrentsSource(object):
@@ -184,11 +178,10 @@ class TorrServer(TorrentsSource):
         else:
             logging.warning(f'Old torrent with hash: {t_hash} => deletion problems')
 
-    def cleanup_torrents(self, hashes=None):
-        if hashes:
-            for hash_to_remove in hashes:
-                self.delete_torrent_with_check(t_hash=hash_to_remove)
-        else:
+    def cleanup_torrents(self, hashes=None, perm=False):
+        if hashes is None:
+            hashes = list()
+        if perm:
             logging.warning(f'Permanent cleanup mode!!! Will be deleted torrents duplicates.')
             rutor_torrents = self.get_rutor_torrents()
             logging.info(f'{len(rutor_torrents)} torrents from Rutor found.')
@@ -220,6 +213,9 @@ class TorrServer(TorrentsSource):
                         self.delete_torrent_with_check(t_hash=deletion_candidate.get('hash'))
             if not duplicated:
                 logging.info(f'There are no duplicates found. Have a nice day!')
+        else:
+            for hash_to_remove in hashes:
+                self.delete_torrent_with_check(t_hash=hash_to_remove)
 
 
 class RuTor(TorrentsSource):
@@ -291,6 +287,10 @@ class LitrCC(TorrentsSource):
         pass
 
     def add_torrent_to_listener(self, secret, group_id):
+        pass
+
+    def refresh_token(self, token):
+        # ToDO: save last valid token for next auth (refresh)
         pass
 
     def _raw2struct(self):
@@ -385,7 +385,23 @@ def main():
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    if ts.args.rutor:
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
+                        handlers=[logging.StreamHandler()]
+                        )
+
+    formatter = logging.Formatter('%(asctime)s %(levelname)s [%(funcName)s] - %(message)s')
+    file_handler = RotatingFileHandler('/var/log/series_updater.log', mode='a', maxBytes=2097152, backupCount=2,
+                                       encoding='utf-8', delay=False)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    logging.getLogger().addHandler(file_handler)
+
+    if ts.args.cleanup:
+        # ToDO: add cleanup mode
+        torr_server.cleanup_torrents(perm=True)
+
+    elif ts.args.rutor:
         ts_rutor_torrents = torr_server.get_rutor_torrents()
         for ts_rutor_id, torrents_list in ts_rutor_torrents.items():
             rt = RuTor()
@@ -417,11 +433,7 @@ def main():
                 else:
                     logging.info(f'No updates found: {rt_hash}')
 
-    if ts.args.cleanup:
-        # ToDO: add cleanup mode
-        torr_server.cleanup_torrents()
-
-    if ts.args.litrcc:
+    elif ts.args.litrcc:
         litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litrcc = LitrCC(url=litrcc_rss_feed_url)
         logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
@@ -456,8 +468,6 @@ def main():
                 torr_server.cleanup_torrents(hashes=hashes)
             else:
                 logging.info(f'No new episodes found: {lcc_link}')
-
-    # ToDO: save last valid token for next auth (refresh)
 
 
 if __name__ == '__main__':

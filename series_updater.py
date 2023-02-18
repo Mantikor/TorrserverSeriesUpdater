@@ -29,7 +29,13 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
+
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
+                    handlers=[logging.StreamHandler()]
+                    )
 
 
 class TorrentsSource(object):
@@ -385,20 +391,7 @@ def main():
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
-                        handlers=[logging.StreamHandler()]
-                        )
-
-    formatter = logging.Formatter('%(asctime)s %(levelname)s [%(funcName)s] - %(message)s')
-    file_handler = RotatingFileHandler('/var/log/series_updater.log', mode='a', maxBytes=2097152, backupCount=2,
-                                       encoding='utf-8', delay=False)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logging.getLogger().addHandler(file_handler)
-
     if ts.args.cleanup:
-        # ToDO: add cleanup mode
         torr_server.cleanup_torrents(perm=True)
 
     elif ts.args.rutor:

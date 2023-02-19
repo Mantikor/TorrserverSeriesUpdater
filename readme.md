@@ -57,11 +57,16 @@ sudo docker run --rm torrserver_series_updater:latest python series_updater.py -
 sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
+#### Run cleanup mode
+```
+sudo docker run --rm torrserver_series_updater:latest python series_updater.py --cleanup --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+```
+
 **RSS_FEED_UUID**, like as 21100112-ffff-aaaa-cccc-e00110011fff - Litr.cc RSS feed identifier
 
-**TORRSERVER_URL**, like as http://192.168.1.2 - ip address of TorrServer instance (if not set, will be default: _http://127.0.0.1_)
+**TORRSERVER_URL**, like as http://192.168.1.2 - ip address of TorrServer instance (default: **http://127.0.0.1**)
 
-**TORRSERVER_PORT**, like as 8090 - port of TorrServer instance (if not set, default: _8090_)
+**TORRSERVER_PORT**, like as 8090 - port of TorrServer instance (default: **8090**)
 
 ### Python script
 
@@ -72,6 +77,10 @@ sudo docker run --rm torrserver_series_updater:latest python series_updater.py -
 #### Run update from Rutor without settings file
 
 `series_updater.py --rutor --ts_url http://192.168.1.2`
+
+#### Run cleanup mode
+
+`series_updater.py --cleanup --ts_url http://192.168.1.2`
 
 ### log sample
 ```

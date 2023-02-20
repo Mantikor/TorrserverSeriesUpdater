@@ -1,4 +1,4 @@
-[![Docker Image release](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml)
+[![Docker Image release](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml) [![Build binaries](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml)
 
 # Updater for torrents with new episodes of series on TorrServer from Litr.cc or Rutor
 
@@ -15,6 +15,10 @@
 Процесс использования выглядит так: вы добавляете торрент в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Пока поддерживаются только раздачи с Rutor.
 
 ## Установка
+
+### Готовые бинарные файлы
+
+Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано только для Windows. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
 
 ### Для пользователей Windows
 

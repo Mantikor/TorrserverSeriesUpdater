@@ -379,7 +379,7 @@ class ArgsParser:
 
 
 def main():
-    desc = f'Awesome series updater for TorrServer, version {__version__}'
+    desc = f'Awesome series updater for TorrServer, (c) 2023 Mantikor, version {__version__}'
     logging.info(desc)
     ts = ArgsParser(desc=desc, def_settings_file=None)
     if ts.args.settings:

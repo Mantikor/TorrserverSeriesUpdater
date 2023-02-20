@@ -41,7 +41,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build with pyinstaller
-        run: pyinstaller --onefile --name=app-${{ matrix.os }} series_updater.py
+        run: pyinstaller --onefile --name=torrserver_series_updater-${{ matrix.os }} series_updater.py
 
       - name: Deploy artifacts
         uses: actions/upload-artifact@v2

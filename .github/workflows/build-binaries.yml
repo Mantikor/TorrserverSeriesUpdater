@@ -1,6 +1,12 @@
 name: Build binaries
 
-on: [push]
+on:
+  push:
+    branches:
+      - 'release-*'
+      - 'v*'
+    tags:
+      - 'v*'
 
 defaults:
   run:
@@ -40,6 +46,6 @@ jobs:
       - name: Deploy artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: app-${{ matrix.os }}
-          path: dist/app-${{ matrix.os }}*
+          name: torrserver_series_updater-${{ matrix.os }}
+          path: dist/torrserver_series_updater-${{ matrix.os }}*
           if-no-files-found: error

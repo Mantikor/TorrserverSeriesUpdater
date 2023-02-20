@@ -14,6 +14,20 @@
 
 Процесс использования выглядит так: вы добавляете торрент в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Пока поддерживаются только раздачи с Rutor.
 
+## Установка
+
+### Для пользователей Windows
+
+Скачиваем [Python](https://www.python.org/ftp/python/3.11.2/python-3.11.2.exe) и устанавливаем его, не забываем отметить при установке галку на **добавить путь в переменную PATH**. Далее [скачиваем последний релиз](https://github.com/Mantikor/TorrserverSeriesUpdater/releases), файл **SourceCode.zip** и распаковываем в удобную папку. Заходим в распакованную папку и по клику правой кнопкой запускаем терминал. В терминале набираем `pip3 install requirements.txt`, установятся нужные для работы пакеты. Далее запускаем скрипт: `python series_updater.py --litrcc RSS_FEED_UUID --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT` для обновления из RSS ленты Litr.cc или `python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT` для обновления с Rutor. **TORRSERVER_URL** - адрес компьютера, где запущен TorrServer (например http://127.0.0.1, если на том же компьютере, откуда запускаете скрипт), **TORRSERVER_PORT** - порт, можно не указывать, если у вас порт по умолчанию **8090**.
+
+Если на компьютере установлен Docker Desktop, то можно скачать уже готовый образ `mantik0r/torrserver_series_updater:latest` и запускать: `docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`
+
+### Для пользователей Linux
+
+Запуск через скрипт работает так же как и для Windows: Python уже обычно есть в дистрибутиве, скрипт устанавливается так же как и для Windows.
+
+Для Docker, скачиваем образ: `sudo docker pull mantik0r/torrserver_series_updater:latest` а потом запускаем: `sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`
+
 ## Installation
 
 ### Docker container
@@ -41,7 +55,6 @@ or
 ```
 python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
-
 
 ## Running
 

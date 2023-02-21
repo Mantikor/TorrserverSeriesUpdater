@@ -2,6 +2,8 @@
 
 # Updater for torrents with new episodes of series on TorrServer from Litr.cc or Rutor
 
+![](torrserver_updater.png)
+
 ## Russian/Русский
 
 Программа для обновления торрентов с сериалами в программе TorrServer by YouROK. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Сейчас программа может работать в трех режимах:
@@ -18,7 +20,7 @@
 
 ### Готовые бинарные файлы
 
-Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано только для Windows. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
+Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано: Windows 11 Pro x64, Windows 10 Pro x64, Ubuntu 20.04, Ubuntu 22.04, Debian server 11. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
 
 ### Для пользователей Windows
 

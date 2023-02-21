@@ -1,12 +1,12 @@
 name: Build binaries
 
-on: [push]
-#  push:
-#    branches:
-#      - 'release-*'
-#      - 'v*'
-#    tags:
-#      - 'v*'
+on:
+  push:
+    branches:
+      - 'release-*'
+      - 'v*'
+    tags:
+      - 'v*'
 
 defaults:
   run:
@@ -22,7 +22,6 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
-          - debian-latest
           - windows-latest
 
     runs-on: ${{ matrix.os }}

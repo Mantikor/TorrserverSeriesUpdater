@@ -20,7 +20,7 @@
 
 ### Готовые бинарные файлы
 
-Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано: Windows 11 Pro x64, Windows 10 Pro x64, Ubuntu 20.04, Ubuntu 22.04, Debian server 11. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
+Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано: Windows 11 Pro x64, Windows 10 Pro x64, Ubuntu 20.04, Ubuntu 22.04, Debian server 11, MacOS. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
 
 ### Для пользователей Windows
 

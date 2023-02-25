@@ -1,26 +1,28 @@
 [![Docker Image release](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml) [![Build binaries](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml)
 
-# Updater for torrents with new episodes of series on TorrServer from Litr.cc or Rutor
+# Updater for torrents with new episodes of series on TorrServer from Litr.cc, Rutor or NNMClub
 
 ![](torrserver_updater.png)
 
 ## Russian/Русский
 
-Программа для обновления торрентов с сериалами в программе TorrServer by YouROK. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Сейчас программа может работать в трех режимах:
+Программа для обновления торрентов с сериалами в программе TorrServer. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Сейчас программа может работать в следующих режимах:
 
 1. обновлять торренты напрямую с Rutor (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с Rutor, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
 2. обновлять торренты с RSS ленты Litr.cc (нужна регистрация на сайте, после чего взять UUID для RSS ленты и указать в параметрах при запуске программы), на данный момент поддерживаются только торренты, добавленные с Rutor, торрент из RSS ленты будет либо обновлен, либо автоматически добавлен в TorrServer, если его там нет.
 3. режим cleanup, для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее, ищет все раздачи с одинаковым id, оставляет раздачу с наибольшим количеством серий, а остальные удаляет (пока поддерживаются только раздачи с Rutor, которые добавлены либо через TorrServer Adder либо через RSS ленту Litr.cc).
+4. обновлять торренты напрямую с NNMClub (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с NNMClub, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
+5. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей.
 
 Программа распространяется как есть, баги и предложения по улучшению просьба добавлять в issues или писать на почту.
 
-Процесс использования выглядит так: вы добавляете торрент в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Пока поддерживаются только раздачи с Rutor.
+Процесс использования выглядит так: вы добавляете торрент с Rutor или NNMClub в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Поддерживаются раздачи, добавленные с Rutor и NNMClub или добавленные в RSS ленту Litr.cc.
 
 ## Установка
 
 ### Готовые бинарные файлы
 
-Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано: Windows 11 Pro x64, Windows 10 Pro x64, Ubuntu 20.04, Ubuntu 22.04, Debian server 11, MacOS. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
+Начиная с версии 0.2.2 можно скачать готовые исполняемые файлы для Linux/MacOS/Windows в разделе с релизами. Протестировано: Windows 11 Pro x64, Windows 10 Pro x64, Ubuntu 20.04, Ubuntu 22.04, Debian server 11, MacOS. Аргументы для запуска те же, что и для скрипта: `--cleanup/--rutor/--litrcc/--nnmclub --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`.
 
 ### Для пользователей Windows
 
@@ -76,6 +78,11 @@ sudo docker run --rm torrserver_series_updater:latest python series_updater.py -
 sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
+#### Run update from NNMClub
+```
+sudo docker run --rm torrserver_series_updater:latest python series_updater.py --nnmclub --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+```
+
 #### Run cleanup mode
 ```
 sudo docker run --rm torrserver_series_updater:latest python series_updater.py --cleanup --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
@@ -116,7 +123,7 @@ sudo docker run --rm torrserver_series_updater:latest python series_updater.py -
 2023-02-12 23:58:44,369 INFO [main] - Old torrent with hash: e06823f26091d9cc988d0558e6f6a82c9e505322 => deleted successfully
 ```
 
-[TorrServer](https://github.com/YouROK/TorrServer) by YouROK
+[TorrServer](https://github.com/YouROK/TorrServer)
 
 [TorrServer Adder for Chrome](https://chrome.google.com/webstore/detail/torrserver-adder/ihphookhabmjbgccflngglmidjloeefg)
 

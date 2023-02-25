@@ -7,7 +7,7 @@ Copyright: (c) 2023, Streltsov Sergey, straltsou.siarhei@gmail.com
 init release 2023-02-10
 The program for update torrents with new episodes for series
 
-[TorrServer](https://github.com/YouROK/TorrServer) by YouROK
+[TorrServer](https://github.com/YouROK/TorrServer)
 [TorrServer Adder for Chrome](https://chrome.google.com/webstore/detail/torrserver-adder/ihphookhabmjbgccflngglmidjloeefg)
 [TorrServer Adder for Firefox](https://addons.mozilla.org/ru/firefox/addon/torrserver-adder/)
 [TorrServe client on 4PDA](https://4pda.to/forum/index.php?showtopic=889960)
@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.2.2'
+__version__ = '0.3.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -143,9 +143,10 @@ class TorrServer(TorrentsSource):
                 stat_string = i.get('stat_string')
                 torrent_size = i.get('torrent_size')
                 rutor_id = RuTor.is_rutor_link(url=t_url)
+                nnmclub_id = NnmClub.is_nnmclub_link(url=t_url)
                 torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
                            't_hash': t_hash, 'stat': stat, 'stat_string': stat_string,
-                           'torrent_size': torrent_size, 'rutor_id': rutor_id}
+                           'torrent_size': torrent_size, 'rutor_id': rutor_id, 'nnmclub_id': nnmclub_id}
                 self.torrents_list.append(torrent)
         logging.info(f'Torrserver, torrents got: {len(self.torrents_list)}')
 
@@ -156,6 +157,15 @@ class TorrServer(TorrentsSource):
                 lst_w_same_id = torrents.get(ts_rutor_id, list())
                 lst_w_same_id.append(ts_torrent)
                 torrents[ts_rutor_id] = lst_w_same_id
+        return torrents
+
+    def get_nnmclub_torrents(self):
+        torrents = dict()
+        for ts_torrent in self.torrents_list:
+            if ts_nnmclub_id := ts_torrent.get('nnmclub_id'):
+                lst_w_same_id = torrents.get(ts_nnmclub_id, list())
+                lst_w_same_id.append(ts_torrent)
+                torrents[ts_nnmclub_id] = lst_w_same_id
         return torrents
 
     def add_updated_torrent(self, updated_torrent, viewed_episodes):
@@ -354,6 +364,56 @@ class Config:
                 break
 
 
+class NnmClub(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._server_url = 'https://nnmclub.to/forum/viewtopic.php?t='
+
+    def get_torrent_page(self, torrent_id):
+        self._server_url = f'{self._server_url}{torrent_id}'
+        logging.debug(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get')
+        return resp
+
+    @staticmethod
+    def get_magnet(text):
+        pattern = re.compile(r'<a rel=\"nofollow\" href=\"magnet:\?xt=urn:btih:([a-fA-F0-9]{40})')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(1).lower()
+        else:
+            return None
+
+    @staticmethod
+    def get_title(text):
+        pattern = re.compile(r'<a class=\"maintitle\" href="viewtopic.php\?t=([0-9]*)\">(.*?)</a>')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(2)
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', html)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
+    @staticmethod
+    def is_nnmclub_link(url):
+        if url and ('nnmclub.to' in url):
+            scratches = url.split('t=')
+            for part in scratches:
+                if part.isdecimal():
+                    return part
+        return None
+
+
 class ArgsParser:
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
@@ -367,6 +427,8 @@ class ArgsParser:
                                  help='feed uuid from litr.cc')
         self.parser.add_argument('--rutor', action='store_true', dest='rutor', default=False,
                                  help='update torrents from rutor.info')
+        self.parser.add_argument('--nnmclub', action='store_true', dest='nnmclub', default=False,
+                                 help='update torrents from nnmclub.to')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -394,7 +456,7 @@ def main():
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)
 
-    elif ts.args.rutor:
+    if ts.args.rutor:
         ts_rutor_torrents = torr_server.get_rutor_torrents()
         for ts_rutor_id, torrents_list in ts_rutor_torrents.items():
             rt = RuTor()
@@ -426,7 +488,7 @@ def main():
                 else:
                     logging.info(f'No updates found: {rt_hash}')
 
-    elif ts.args.litrcc:
+    if ts.args.litrcc:
         litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litrcc = LitrCC(url=litrcc_rss_feed_url)
         logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
@@ -461,6 +523,38 @@ def main():
                 torr_server.cleanup_torrents(hashes=hashes)
             else:
                 logging.info(f'No new episodes found: {lcc_link}')
+
+    if ts.args.nnmclub:
+        ts_nnmclub_torrents = torr_server.get_nnmclub_torrents()
+        for ts_nnmclub_id, torrents_list in ts_nnmclub_torrents.items():
+            nnm = NnmClub()
+            resp = nnm.get_torrent_page(torrent_id=ts_nnmclub_id)
+            if resp.status_code == 200:
+                nnm_title = nnm.get_title(text=resp.text)
+                nnm_hash = nnm.get_magnet(text=resp.text)
+                nnm_poster = nnm.get_poster(text=resp.text)
+                logging.info(f'Checking: {nnm_title}')
+                logging.debug(f'Poster: {nnm_poster}')
+                logging.debug(f'New HASH: {nnm_hash}')
+                hashes = list()
+                for i in torrents_list:
+                    old_hash = i.get('t_hash')
+                    hashes.append(old_hash)
+                if nnm_hash not in hashes:
+                    logging.info(f'Found update: {nnm_hash}')
+                    indexes = set()
+                    data = f'{{"TSA":{{"srcUrl":"https://nnmclub.to/forum/viewtopic.php?t={ts_nnmclub_id}"}}}}'
+                    for t_hash in hashes:
+                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
+                        for vi in viewed_indexes_list:
+                            indexes.add(vi.get('file_index'))
+
+                    updated_torrent = {'link': f'magnet:?xt=urn:btih:{nnm_hash}', 'title': nnm_title,
+                                       'poster': nnm_poster, 'save_to_db': True, 'data': data, 'hash': nnm_hash}
+                    torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
+                    torr_server.cleanup_torrents(hashes=hashes)
+                else:
+                    logging.info(f'No updates found: {nnm_hash}')
 
 
 if __name__ == '__main__':

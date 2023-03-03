@@ -276,7 +276,7 @@ class RuTor(TorrentsSource):
 
     @staticmethod
     def is_rutor_link(url):
-        if url and ('rutor.info' in url):
+        if url and any(domain in url for domain in ['rutor.info', 'rutor.is']):
             scratches = url.split('/')
             for part in scratches:
                 if part.isdecimal():

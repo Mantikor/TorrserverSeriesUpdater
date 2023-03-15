@@ -427,7 +427,7 @@ class TorrentBy(RuTor):
 
     @staticmethod
     def get_magnet(text):
-        pattern = re.compile(r'<div id=\"download\"><a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
+        pattern = re.compile(r'<a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
         html = text.replace('\n', '')
         search_res = pattern.search(html)
         if search_res:

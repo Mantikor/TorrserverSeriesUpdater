@@ -65,7 +65,8 @@ class TorrentsSource(object):
                 file_handler.setFormatter(formatter)
                 logging.getLogger(prefix).addHandler(file_handler)
 
-    def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10):
+    def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10,
+                        verify: bool = True):
         if data is None:
             data = dict()
         if pref:
@@ -74,11 +75,11 @@ class TorrentsSource(object):
             url = f'{self._server_url}{pref}'
             logging.debug(url)
             if r_type == 'get':
-                resp = requests.get(url=url, timeout=timeout)
+                resp = requests.get(url=url, timeout=timeout, verify=verify)
             elif r_type == 'post':
-                resp = requests.post(url=url, json=data, timeout=timeout)
+                resp = requests.post(url=url, json=data, timeout=timeout, verify=verify)
             else:
-                resp = requests.head(url=url, json=data, timeout=timeout)
+                resp = requests.head(url=url, json=data, timeout=timeout, verify=verify)
         except Exception as e:
             logging.error(e)
             logging.error(f'Connection problems with {self._server_url}{pref}')

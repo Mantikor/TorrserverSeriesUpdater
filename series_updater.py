@@ -29,13 +29,14 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.3.2'
+__version__ = '0.4.0'
 
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
                     handlers=[logging.StreamHandler()]
                     )
+
 RUTOR = {'rutor_id': ['rutor.info', 'rutor.is']}
 NNMCLUB = {'nnmclub_id': ['nnmclub.to']}
 TORRENTBY = {'torrentby_id': ['torrent.by']}
@@ -217,8 +218,9 @@ class TorrServer(TorrentsSource):
         if perm:
             logging.warning(f'Permanent cleanup mode!!! Will be deleted torrents duplicates.')
 
-            rutor_torrents = self.get_tracker_torrents()get_rutor_torrents()
-            logging.info(f'{len(rutor_torrents)} torrents from Rutor found.')
+            tracker_name_id, tracker_url_patterns = list(RUTOR.items())[0]
+            rutor_torrents = self.get_tracker_torrents(tracker_id=tracker_name_id)
+            logging.info(f'{len(rutor_torrents)} torrents from {tracker_url_patterns} found.')
             duplicated = 0
             for rutor_id, torrents_lst in rutor_torrents.items():
                 if len(torrents_lst) > 1:
@@ -413,12 +415,12 @@ class TorrentBy(RuTor):
         super().__init__(*args, **kwargs)
         self._server_url = 'https://torrent.by/'
 
-    # ToDo: if need to disable verify ssl certificate - uncomment
-    # def get_torrent_page(self, torrent_id):
-    #     self._server_url = f'{self._server_url}{torrent_id}'
-    #     logging.debug(f'URL: {self._server_url}')
-    #     resp = self._server_request(r_type='get', verify=False)
-    #     return resp
+    # if you have problems with error ssl certificate torrent.by, pass verify=False to disable verify ssl certificate
+    def get_torrent_page(self, torrent_id):
+        self._server_url = f'{self._server_url}{torrent_id}'
+        logging.debug(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get', verify=False)
+        return resp
 
     @staticmethod
     def get_magnet(text):
@@ -429,25 +431,6 @@ class TorrentBy(RuTor):
             return search_res.group(1)
         else:
             return None
-
-    # @staticmethod
-    # def get_title(text):
-    #     pattern = re.compile(r'<h1>(.*?)</h1>')
-    #     html = text.replace('\n', '')
-    #     search_res = pattern.search(html)
-    #     if search_res:
-    #         return search_res.group(1)
-    #     else:
-    #         return None
-
-    # @staticmethod
-    # def get_poster(text):
-    #     html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-    #     match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', html)
-    #     if match:
-    #         return match.group(1)
-    #     else:
-    #         return None
 
 
 class ArgsParser:
@@ -478,6 +461,40 @@ class ArgsParser:
         return self.parser.parse_args()
 
 
+def update_tracker_torrents(tracker, tracker_class, torrserver):
+    tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
+    tracker_torrents = torrserver.get_tracker_torrents(tracker_id=tracker_name_id)
+    for torrent_id, torrents_list in tracker_torrents.items():
+        cls = tracker_class()
+        resp = cls.get_torrent_page(torrent_id=torrent_id)
+        if resp.status_code == 200:
+            t_title = cls.get_title(text=resp.text)
+            t_hash = cls.get_magnet(text=resp.text)
+            t_poster = cls.get_poster(text=resp.text)
+            logging.info(f'Checking: {t_title}')
+            logging.debug(f'Poster: {t_poster}')
+            logging.debug(f'New HASH: {t_hash}')
+            hashes = list()
+            for i in torrents_list:
+                old_hash = i.get('t_hash')
+                hashes.append(old_hash)
+            if t_hash not in hashes:
+                logging.info(f'Found update: {t_hash}')
+                indexes = set()
+                data = f'{{"TSA":{{"srcUrl":"{cls._server_url}{torrent_id}"}}}}'
+                for t_hash in hashes:
+                    viewed_indexes_list = torrserver.get_torrent_info(t_hash=t_hash)
+                    for vi in viewed_indexes_list:
+                        indexes.add(vi.get('file_index'))
+
+                updated_torrent = {'link': f'magnet:?xt=urn:btih:{t_hash}', 'title': t_title, 'poster': t_poster,
+                                   'save_to_db': True, 'data': data, 'hash': t_hash}
+                torrserver.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
+                torrserver.cleanup_torrents(hashes=hashes)
+            else:
+                logging.info(f'No updates found: {t_hash}')
+
+
 def main():
     desc = f'Awesome series updater for TorrServer, (c) 2023 Mantikor, version {__version__}'
     logging.info(desc)
@@ -495,43 +512,15 @@ def main():
         torr_server.cleanup_torrents(perm=True)
 
     if ts.args.rutor:
-        ts_rutor_torrents = torr_server.get_rutor_torrents()
-        for ts_rutor_id, torrents_list in ts_rutor_torrents.items():
-            rt = RuTor()
-            resp = rt.get_torrent_page(torrent_id=ts_rutor_id)
-            if resp.status_code == 200:
-                rt_title = rt.get_title(text=resp.text)
-                rt_hash = rt.get_magnet(text=resp.text)
-                rt_poster = rt.get_poster(text=resp.text)
-                logging.info(f'Checking: {rt_title}')
-                logging.debug(f'Poster: {rt_poster}')
-                logging.debug(f'New HASH: {rt_hash}')
-                hashes = list()
-                for i in torrents_list:
-                    old_hash = i.get('t_hash')
-                    hashes.append(old_hash)
-                if rt_hash not in hashes:
-                    logging.info(f'Found update: {rt_hash}')
-                    indexes = set()
-                    data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{ts_rutor_id}"}}}}'
-                    for t_hash in hashes:
-                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
-                        for vi in viewed_indexes_list:
-                            indexes.add(vi.get('file_index'))
-
-                    updated_torrent = {'link': f'magnet:?xt=urn:btih:{rt_hash}', 'title': rt_title, 'poster': rt_poster,
-                                       'save_to_db': True, 'data': data, 'hash': rt_hash}
-                    torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
-                    torr_server.cleanup_torrents(hashes=hashes)
-                else:
-                    logging.info(f'No updates found: {rt_hash}')
+        update_tracker_torrents(tracker=RUTOR, tracker_class=RuTor, torrserver=torr_server)
 
     if ts.args.litrcc:
         litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
         litrcc = LitrCC(url=litrcc_rss_feed_url)
         logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
-        litrcc_rutor_torrents = litrcc.get_rutor_torrents()
-        ts_rutor_torrents = torr_server.get_rutor_torrents()
+        tracker_name_id, tracker_url_patterns = list(RUTOR.items())[0]
+        litrcc_rutor_torrents = litrcc.get_tracker_torrents(tracker_id=tracker_name_id)
+        ts_rutor_torrents = torr_server.get_tracker_torrents(tracker_id=tracker_name_id)
         for lcc_rutor_id, lcc_torrent_list in litrcc_rutor_torrents.items():
             sorted_lst = sorted(lcc_torrent_list, key=itemgetter('date_modified'), reverse=True)
             litrcc_rutor_torrents[lcc_rutor_id] = sorted_lst
@@ -563,36 +552,10 @@ def main():
                 logging.info(f'No new episodes found: {lcc_link}')
 
     if ts.args.nnmclub:
-        ts_nnmclub_torrents = torr_server.get_nnmclub_torrents()
-        for ts_nnmclub_id, torrents_list in ts_nnmclub_torrents.items():
-            nnm = NnmClub()
-            resp = nnm.get_torrent_page(torrent_id=ts_nnmclub_id)
-            if resp.status_code == 200:
-                nnm_title = nnm.get_title(text=resp.text)
-                nnm_hash = nnm.get_magnet(text=resp.text)
-                nnm_poster = nnm.get_poster(text=resp.text)
-                logging.info(f'Checking: {nnm_title}')
-                logging.debug(f'Poster: {nnm_poster}')
-                logging.debug(f'New HASH: {nnm_hash}')
-                hashes = list()
-                for i in torrents_list:
-                    old_hash = i.get('t_hash')
-                    hashes.append(old_hash)
-                if nnm_hash not in hashes:
-                    logging.info(f'Found update: {nnm_hash}')
-                    indexes = set()
-                    data = f'{{"TSA":{{"srcUrl":"https://nnmclub.to/forum/viewtopic.php?t={ts_nnmclub_id}"}}}}'
-                    for t_hash in hashes:
-                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
-                        for vi in viewed_indexes_list:
-                            indexes.add(vi.get('file_index'))
+        update_tracker_torrents(tracker=NNMCLUB, tracker_class=NnmClub, torrserver=torr_server)
 
-                    updated_torrent = {'link': f'magnet:?xt=urn:btih:{nnm_hash}', 'title': nnm_title,
-                                       'poster': nnm_poster, 'save_to_db': True, 'data': data, 'hash': nnm_hash}
-                    torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
-                    torr_server.cleanup_torrents(hashes=hashes)
-                else:
-                    logging.info(f'No updates found: {nnm_hash}')
+    if ts.args.torrentby:
+        update_tracker_torrents(tracker=TORRENTBY, tracker_class=TorrentBy, torrserver=torr_server)
 
 
 if __name__ == '__main__':

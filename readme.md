@@ -1,22 +1,26 @@
 [![Docker Image release](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml) [![Build binaries](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml) [![Github All Releases](https://img.shields.io/github/downloads/Mantikor/TorrserverSeriesUpdater/total.svg)]()
 
-# Updater for torrents with new episodes of series on TorrServer from Litr.cc, Rutor or NNMClub
+# Updater for torrents with new episodes of series on TorrServer, added from litr.cc, rutor.info(is), nnmclub.to, torrent.by (if added via TorrServer Adder)
+
+# Программа для обновления торрентов с сериалами в программе TorrServer. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Поддерживаются litr.cc, rutor.info(is), nnmclub.to, torrent.by (если раздача добавлена через TorrServer Adder)
 
 ![](torrserver_updater.png)
 
 ## Russian/Русский
 
-Программа для обновления торрентов с сериалами в программе TorrServer. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Сейчас программа может работать в следующих режимах:
+Доступны следующие режимы:
 
-1. обновлять торренты напрямую с Rutor (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с Rutor, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
-2. обновлять торренты с RSS ленты Litr.cc (нужна регистрация на сайте, после чего взять UUID для RSS ленты и указать в параметрах при запуске программы), на данный момент поддерживаются только торренты, добавленные с Rutor, торрент из RSS ленты будет либо обновлен, либо автоматически добавлен в TorrServer, если его там нет.
+1. обновление торрентов напрямую с Rutor (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с Rutor, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
+2. обновление торрентов из RSS ленты Litr.cc (нужна регистрация на сайте, после чего взять UUID для RSS ленты и указать в параметрах при запуске программы), на данный момент поддерживаются торренты, добавленные с Rutor, (NNMClub, Torrent.by - не тестировано), торрент из RSS ленты будет либо обновлен, либо автоматически добавлен в TorrServer, если его там нет.
 3. режим cleanup, для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее, ищет все раздачи с одинаковым id, оставляет раздачу с наибольшим количеством серий, а остальные удаляет (пока поддерживаются только раздачи с Rutor, которые добавлены либо через TorrServer Adder либо через RSS ленту Litr.cc).
-4. обновлять торренты напрямую с NNMClub (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с NNMClub, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
-5. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей.
+4. обновление торрентов напрямую с NNMClub (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с NNMClub, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
+5. обновление торрентов напрямую с Torrent.by (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с NNMClub, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
+6. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей.
+
 
 Программа распространяется как есть, баги и предложения по улучшению просьба добавлять в issues или писать на почту.
 
-Процесс использования выглядит так: вы добавляете торрент с Rutor или NNMClub в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Поддерживаются раздачи, добавленные с Rutor и NNMClub или добавленные в RSS ленту Litr.cc.
+Процесс использования выглядит так: вы добавляете торрент с Rutor/NNMClub/Torrent.by в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Поддерживаются раздачи, добавленные с Rutor/NNMClub/Torrent.by или добавленные в RSS ленту Litr.cc.
 
 ## Установка
 
@@ -38,17 +42,16 @@
 
 ## English/Английский
 
-Программа для обновления торрентов с сериалами в программе TorrServer. Предназначена для обновления торрентов с сериалами, которые обновляются путем добавления новых серий. Сейчас программа может работать в следующих режимах:
+The following modes are available:
 
-1. обновлять торренты напрямую с Rutor (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с Rutor, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
-2. обновлять торренты с RSS ленты Litr.cc (нужна регистрация на сайте, после чего взять UUID для RSS ленты и указать в параметрах при запуске программы), на данный момент поддерживаются только торренты, добавленные с Rutor, торрент из RSS ленты будет либо обновлен, либо автоматически добавлен в TorrServer, если его там нет.
-3. режим cleanup, для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее, ищет все раздачи с одинаковым id, оставляет раздачу с наибольшим количеством серий, а остальные удаляет (пока поддерживаются только раздачи с Rutor, которые добавлены либо через TorrServer Adder либо через RSS ленту Litr.cc).
-4. обновлять торренты напрямую с NNMClub (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены с NNMClub, после чего просматриваются раздачи, если вышли новые серии то торрент обновляется, так же сохраняются отметки о просмотренных сериях, старый торрент удаляется.
-5. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей.
+1. Rutor direct torrents update (no registration needed), in this mode we get torrents list from TorrServer, check torrents added from Rutor, after we search torrents on site and if new series allowed we update our torrent and preserve viewed episodes marks, old torrent will be deleted.
+2. Torrents update from RSS feed of Litr.cc (you need registration on site, and you need RSS feed UUID, you need to pass UUID to running parameters), supported torrents added from  Rutor, (NNMClub, Torrent.by - not tested), torrent will be updated or will be added to TorrServer.
+3. cleanup mode - for search and deletion old torrents, with fewer episodes than current. Will be search all torrents with the same id, leaves torrent with the most series, and deletes other (supported torrents from Rutor, added with TorrServer Adder or RSS feed Litr.cc).
+4. NNMClub direct torrents update (no registration needed), in this mode we get torrents list from TorrServer, check torrents added from NNMClub, after we search torrents on site and if new series allowed we update our torrent and preserve viewed episodes marks, old torrent will be deleted.
+5. Torrent.by direct torrents update (no registration needed), in this mode we get torrents list from TorrServer, check torrents added from Torrent.by, after we search torrents on site and if new series allowed we update our torrent and preserve viewed episodes marks, old torrent will be deleted.
+6. combo-mode: use combination of all supported keys.
 
-Программа распространяется как есть, баги и предложения по улучшению просьба добавлять в issues или писать на почту.
-
-Процесс использования выглядит так: вы добавляете торрент с Rutor или NNMClub в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в Litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. Поддерживаются раздачи, добавленные с Rutor и NNMClub или добавленные в RSS ленту Litr.cc.
+The program is distributed as is, bugs and suggestions for improvement you can add to issues or write to the e-mail.
 
 ## Installation
 

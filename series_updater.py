@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -408,6 +408,56 @@ class NnmClub(TorrentsSource):
     def is_nnmclub_link(url):
         if url and ('nnmclub.to' in url):
             scratches = url.split('t=')
+            for part in scratches:
+                if part.isdecimal():
+                    return part
+        return None
+
+
+class TorrentBy(RuTor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._server_url = 'https://torrent.by/'
+
+    def get_torrent_page(self, torrent_id):
+        self._server_url = f'{self._server_url}{torrent_id}'
+        logging.debug(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get')
+        return resp
+
+    @staticmethod
+    def get_magnet(text):
+        pattern = re.compile(r'<div id=\"download\"><a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(1)
+        else:
+            return None
+
+    @staticmethod
+    def get_title(text):
+        pattern = re.compile(r'<h1>(.*?)</h1>')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(1)
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', html)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
+    @staticmethod
+    def is_rutor_link(url):
+        if url and 'torrent.by' in url:
+            scratches = url.split('/')
             for part in scratches:
                 if part.isdecimal():
                     return part

@@ -36,6 +36,10 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
                     handlers=[logging.StreamHandler()]
                     )
+RUTOR = {'rutor_id': ['rutor.info', 'rutor.is']}
+NNMCLUB = {'nnmclub_id': ['nnmclub.to']}
+TORRENTBY = {'torrentby_id': ['torrent.by']}
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY]
 
 
 class TorrentsSource(object):
@@ -43,6 +47,7 @@ class TorrentsSource(object):
         # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
         # self.add_logger_handler(debug=kwargs.get('debug', False))
         self._server_url = kwargs.get('server_url', 'http://127.0.0.1')
+        self.torrents_list: list = list()
 
     def add_logger_handler(self, debug=False):
         handlers = [logging.StreamHandler()]
@@ -86,6 +91,32 @@ class TorrentsSource(object):
             # raise Exception
             sys.exit(1)
         return resp
+
+    def get_torrent_page(self, torrent_id):
+        self._server_url = f'{self._server_url}{torrent_id}'
+        logging.debug(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get')
+        return resp
+
+    def get_tracker_torrents(self, tracker_id=''):
+        torrents = dict()
+        for torrent in self.torrents_list:
+            if torrent_id := torrent.get(tracker_id):
+                lst_w_same_id = torrents.get(torrent_id, list())
+                lst_w_same_id.append(torrent)
+                torrents[torrent_id] = lst_w_same_id
+        return torrents
+
+    @staticmethod
+    def is_tracker_link(url, patterns=None):
+        if patterns is None:
+            patterns = list
+        if url and any(domain in url for domain in patterns):
+            scratches = url.split('/')
+            for part in scratches:
+                if part.isdecimal():
+                    return part
+        return None
 
 
 class TorrServer(TorrentsSource):
@@ -143,31 +174,16 @@ class TorrServer(TorrentsSource):
                 stat = i.get('stat')
                 stat_string = i.get('stat_string')
                 torrent_size = i.get('torrent_size')
-                rutor_id = RuTor.is_rutor_link(url=t_url)
-                nnmclub_id = NnmClub.is_nnmclub_link(url=t_url)
-                torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
-                           't_hash': t_hash, 'stat': stat, 'stat_string': stat_string,
-                           'torrent_size': torrent_size, 'rutor_id': rutor_id, 'nnmclub_id': nnmclub_id}
-                self.torrents_list.append(torrent)
+                for tracker in TRACKERS:
+                    tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
+                    torrent_id = TorrentsSource.is_tracker_link(url=t_url, patterns=tracker_url_patterns)
+                    if torrent_id:
+                        torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
+                                   't_hash': t_hash, 'stat': stat, 'stat_string': stat_string,
+                                   'torrent_size': torrent_size, tracker_name_id: torrent_id}
+                        self.torrents_list.append(torrent)
+                        continue
         logging.info(f'Torrserver, torrents got: {len(self.torrents_list)}')
-
-    def get_rutor_torrents(self):
-        torrents = dict()
-        for ts_torrent in self.torrents_list:
-            if ts_rutor_id := ts_torrent.get('rutor_id'):
-                lst_w_same_id = torrents.get(ts_rutor_id, list())
-                lst_w_same_id.append(ts_torrent)
-                torrents[ts_rutor_id] = lst_w_same_id
-        return torrents
-
-    def get_nnmclub_torrents(self):
-        torrents = dict()
-        for ts_torrent in self.torrents_list:
-            if ts_nnmclub_id := ts_torrent.get('nnmclub_id'):
-                lst_w_same_id = torrents.get(ts_nnmclub_id, list())
-                lst_w_same_id.append(ts_torrent)
-                torrents[ts_nnmclub_id] = lst_w_same_id
-        return torrents
 
     def add_updated_torrent(self, updated_torrent, viewed_episodes):
         res = self.add_torrent(torrent=updated_torrent)
@@ -200,7 +216,8 @@ class TorrServer(TorrentsSource):
             hashes = list()
         if perm:
             logging.warning(f'Permanent cleanup mode!!! Will be deleted torrents duplicates.')
-            rutor_torrents = self.get_rutor_torrents()
+
+            rutor_torrents = self.get_tracker_torrents()get_rutor_torrents()
             logging.info(f'{len(rutor_torrents)} torrents from Rutor found.')
             duplicated = 0
             for rutor_id, torrents_lst in rutor_torrents.items():
@@ -240,12 +257,6 @@ class RuTor(TorrentsSource):
         super().__init__(*args, **kwargs)
         self._server_url = 'http://rutor.info/torrent/'
 
-    def get_torrent_page(self, torrent_id):
-        self._server_url = f'{self._server_url}{torrent_id}'
-        logging.debug(f'URL: {self._server_url}')
-        resp = self._server_request(r_type='get')
-        return resp
-
     @staticmethod
     def get_magnet(text):
         pattern = re.compile(r'<div id=\"download\"><a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
@@ -276,7 +287,9 @@ class RuTor(TorrentsSource):
             return None
 
     @staticmethod
-    def is_rutor_link(url):
+    def is_tracker_link(url, patterns=None):
+        if patterns is None:
+            patterns = list
         if url and any(domain in url for domain in ['rutor.info', 'rutor.is']):
             scratches = url.split('/')
             for part in scratches:
@@ -289,7 +302,7 @@ class LitrCC(TorrentsSource):
     def __init__(self, url, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._server_url = URL(url)
-        self.torrents_list: list = list()
+        # self.torrents_list: list = list()
         self._raw = self._get_torrents_list()
         self._raw2struct()
 
@@ -320,20 +333,15 @@ class LitrCC(TorrentsSource):
                 date_modified = i.get('date_modified')
                 image = i.get('image')
                 external_url = i.get('external_url')
-                rutor_id = RuTor.is_rutor_link(url=external_url)
-                torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
-                           'image': image, 'external_url': external_url, 'rutor_id': rutor_id}
-                self.torrents_list.append(torrent)
+                for tracker in TRACKERS:
+                    tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
+                    torrent_id = TorrentsSource.is_tracker_link(url=external_url, patterns=tracker_url_patterns)
+                    if torrent_id:
+                        torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
+                                   'image': image, 'external_url': external_url, tracker_name_id: torrent_id}
+                        self.torrents_list.append(torrent)
+                        continue
         logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
-
-    def get_rutor_torrents(self):
-        torrents = dict()
-        for litrcc_torrent in self.torrents_list:
-            if lcc_rutor_id := litrcc_torrent.get('rutor_id'):
-                lst_w_same_id = torrents.get(lcc_rutor_id, list())
-                lst_w_same_id.append(litrcc_torrent)
-                torrents[lcc_rutor_id] = lst_w_same_id
-        return torrents
 
 
 class Config:
@@ -370,12 +378,6 @@ class NnmClub(TorrentsSource):
         super().__init__(*args, **kwargs)
         self._server_url = 'https://nnmclub.to/forum/viewtopic.php?t='
 
-    def get_torrent_page(self, torrent_id):
-        self._server_url = f'{self._server_url}{torrent_id}'
-        logging.debug(f'URL: {self._server_url}')
-        resp = self._server_request(r_type='get')
-        return resp
-
     @staticmethod
     def get_magnet(text):
         pattern = re.compile(r'<a rel=\"nofollow\" href=\"magnet:\?xt=urn:btih:([a-fA-F0-9]{40})')
@@ -405,26 +407,18 @@ class NnmClub(TorrentsSource):
         else:
             return None
 
-    @staticmethod
-    def is_nnmclub_link(url):
-        if url and ('nnmclub.to' in url):
-            scratches = url.split('t=')
-            for part in scratches:
-                if part.isdecimal():
-                    return part
-        return None
-
 
 class TorrentBy(RuTor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._server_url = 'https://torrent.by/'
 
-    def get_torrent_page(self, torrent_id):
-        self._server_url = f'{self._server_url}{torrent_id}'
-        logging.debug(f'URL: {self._server_url}')
-        resp = self._server_request(r_type='get')
-        return resp
+    # ToDo: if need to disable verify ssl certificate - uncomment
+    # def get_torrent_page(self, torrent_id):
+    #     self._server_url = f'{self._server_url}{torrent_id}'
+    #     logging.debug(f'URL: {self._server_url}')
+    #     resp = self._server_request(r_type='get', verify=False)
+    #     return resp
 
     @staticmethod
     def get_magnet(text):
@@ -436,33 +430,24 @@ class TorrentBy(RuTor):
         else:
             return None
 
-    @staticmethod
-    def get_title(text):
-        pattern = re.compile(r'<h1>(.*?)</h1>')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
-        if search_res:
-            return search_res.group(1)
-        else:
-            return None
+    # @staticmethod
+    # def get_title(text):
+    #     pattern = re.compile(r'<h1>(.*?)</h1>')
+    #     html = text.replace('\n', '')
+    #     search_res = pattern.search(html)
+    #     if search_res:
+    #         return search_res.group(1)
+    #     else:
+    #         return None
 
-    @staticmethod
-    def get_poster(text):
-        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-        match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', html)
-        if match:
-            return match.group(1)
-        else:
-            return None
-
-    @staticmethod
-    def is_rutor_link(url):
-        if url and 'torrent.by' in url:
-            scratches = url.split('/')
-            for part in scratches:
-                if part.isdecimal():
-                    return part
-        return None
+    # @staticmethod
+    # def get_poster(text):
+    #     html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+    #     match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', html)
+    #     if match:
+    #         return match.group(1)
+    #     else:
+    #         return None
 
 
 class ArgsParser:
@@ -480,6 +465,8 @@ class ArgsParser:
                                  help='update torrents from rutor.info')
         self.parser.add_argument('--nnmclub', action='store_true', dest='nnmclub', default=False,
                                  help='update torrents from nnmclub.to')
+        self.parser.add_argument('--torrentby', action='store_true', dest='torrentby', default=False,
+                                 help='update torrents from torrent.by')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')

@@ -90,7 +90,8 @@ class TorrentsSource(object):
             logging.error(e)
             logging.error(f'Connection problems with {self._server_url}{pref}')
             # raise Exception
-            sys.exit(1)
+            # sys.exit(1)
+            resp = None
         return resp
 
     def get_torrent_page(self, torrent_id):
@@ -467,7 +468,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
     for torrent_id, torrents_list in tracker_torrents.items():
         cls = tracker_class()
         resp = cls.get_torrent_page(torrent_id=torrent_id)
-        if resp.status_code == 200:
+        if resp and resp.status_code == 200:
             t_title = cls.get_title(text=resp.text)
             t_hash = cls.get_magnet(text=resp.text)
             t_poster = cls.get_poster(text=resp.text)

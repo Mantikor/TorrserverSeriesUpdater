@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -482,7 +482,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
             if t_hash not in hashes:
                 logging.info(f'Found update: {t_hash}')
                 indexes = set()
-                data = f'{{"TSA":{{"srcUrl":"{cls._server_url}{torrent_id}"}}}}'
+                data = f'{{"TSA":{{"srcUrl":"{cls._server_url}"}}}}'
                 for torrent_hash in hashes:
                     viewed_indexes_list = torrserver.get_torrent_info(t_hash=torrent_hash)
                     for vi in viewed_indexes_list:

@@ -368,10 +368,6 @@ class LitrCC(TorrentsSource):
                 torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
                            'image': image, 'external_url': external_url}
                 self.torrents_list.append(torrent)
-                logging.debug(f'litr.cc: {str(t_id).lower()}')
-                logging.debug(f'litr.cc: {title}')
-                logging.debug(f'litr.cc: {external_url}')
-                logging.debug('='*150)
         logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
 
 

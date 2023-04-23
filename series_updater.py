@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from operator import itemgetter
 
 
-__version__ = '0.4.2'
+__version__ = '0.5.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -549,12 +549,18 @@ def main():
         litrcc = LitrCC(url=litrcc_rss_feed_url)
         torr_server.get_litrcc_torrents()
         for litrcc_item in litrcc.torrents_list:
-            torrent_url = litrcc_item.get('t_url')
+            torrent_external_url = litrcc_item.get('external_url')
             torrent_title = litrcc_item.get('title')
-            if torrent_url in torr_server.litrcc_torrents_cache:
+            torrent_hash = litrcc_item.get('id')
+            torrent_poster = litrcc_item.get('image')
+            if torrent_external_url in torr_server.litrcc_torrents_cache:
                 logging.info(f'{torrent_title} will be updated')
             else:
                 logging.info(f'{torrent_title} will be added')
+                data = f'{{"LITRCC":{{"external_url":"{torrent_external_url}"}}}}'
+                torrserver_torrent = {'link': f'magnet:?xt=urn:btih:{torrent_hash}', 'title': torrent_title,
+                                      'poster': torrent_poster, 'save_to_db': True, 'data': data, 'hash': torrent_hash}
+                torr_server.add_torrent(torrent=torrserver_torrent)
 
 
         # logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')

@@ -553,49 +553,37 @@ def main():
             torrent_title = litrcc_item.get('title')
             torrent_hash = litrcc_item.get('id')
             torrent_poster = litrcc_item.get('image')
+            logging.info(f'Checking: {torrent_title}')
             if torrent_external_url in torr_server.litrcc_torrents_cache:
-                logging.info(f'{torrent_title} will be updated')
+                # logging.info(f'{torrent_title} will be updated')
+                hashes = list()
+                for ts_item in torr_server.litrcc_torrents_list:
+                    ts_external_url = ts_item.get('t_url')
+                    ts_title = ts_item.get('title')
+                    ts_hash = ts_item.get('t_hash')
+                    ts_poster = ts_item.get('poster')
+                    hashes.append(ts_hash)
+                if torrent_hash not in hashes:
+                    logging.info(f'Found update: {torrent_external_url}')
+                    indexes = set()
+                    data = f'{{"LITRCC":{{"external_url":"{torrent_external_url}"}}}}'
+                    for t_hash in hashes:
+                        viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
+                        for vi in viewed_indexes_list:
+                            indexes.add(vi.get('file_index'))
+                    torrserver_torrent = {'link': f'magnet:?xt=urn:btih:{torrent_hash}', 'title': torrent_title,
+                                          'poster': torrent_poster, 'save_to_db': True, 'data': data,
+                                          'hash': torrent_hash}
+                    torr_server.add_updated_torrent(updated_torrent=torrserver_torrent, viewed_episodes=indexes)
+                    torr_server.cleanup_torrents(hashes=hashes)
+                else:
+                    logging.info(f'No new episodes found: {torrent_external_url}')
             else:
-                logging.info(f'{torrent_title} will be added')
+                logging.info(f'New hash, {torrent_hash}, will be added to the server list')
                 data = f'{{"LITRCC":{{"external_url":"{torrent_external_url}"}}}}'
                 torrserver_torrent = {'link': f'magnet:?xt=urn:btih:{torrent_hash}', 'title': torrent_title,
                                       'poster': torrent_poster, 'save_to_db': True, 'data': data, 'hash': torrent_hash}
                 torr_server.add_torrent(torrent=torrserver_torrent)
-
-
-        # logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
-        # tracker_name_id, tracker_url_patterns = list(RUTOR.items())[0]
-        # litrcc_rutor_torrents = litrcc.get_tracker_torrents(tracker_id=tracker_name_id)
-        # ts_rutor_torrents = torr_server.get_tracker_torrents(tracker_id=tracker_name_id)
-        # for lcc_rutor_id, lcc_torrent_list in litrcc_rutor_torrents.items():
-        #     sorted_lst = sorted(lcc_torrent_list, key=itemgetter('date_modified'), reverse=True)
-        #     litrcc_rutor_torrents[lcc_rutor_id] = sorted_lst
-        #     ts_torrents_list = ts_rutor_torrents.get(lcc_rutor_id, list())
-        #     hashes = list()
-        #     for i in ts_torrents_list:
-        #         old_hash = i.get('t_hash')
-        #         hashes.append(old_hash)
-        #     lcc_rutor_torrent = litrcc_rutor_torrents[lcc_rutor_id][0]
-        #     lcc_link = lcc_rutor_torrent.get('id')
-        #     lcc_title = lcc_rutor_torrent.get('title')
-        #     lcc_poster = lcc_rutor_torrent.get('image')
-        #     logging.info(f'Checking: {lcc_title}')
-        #     logging.debug(f'Poster: {lcc_poster}')
-        #     logging.debug(f'New HASH: {lcc_link}')
-        #     if lcc_link not in hashes:
-        #         logging.info(f'Found update: {lcc_link}')
-        #         indexes = set()
-        #         data = f'{{"TSA":{{"srcUrl":"http://rutor.info/torrent/{lcc_rutor_id}"}}}}'
-        #         for t_hash in hashes:
-        #             viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
-        #             for vi in viewed_indexes_list:
-        #                 indexes.add(vi.get('file_index'))
-        #         updated_torrent = {'link': f'magnet:?xt=urn:btih:{lcc_link}', 'title': lcc_title, 'poster': lcc_poster,
-        #                            'save_to_db': True, 'data': data, 'hash': lcc_link}
-        #         torr_server.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
-        #         torr_server.cleanup_torrents(hashes=hashes)
-        #     else:
-        #         logging.info(f'No new episodes found: {lcc_link}')
 
     if ts.args.nnmclub:
         update_tracker_torrents(tracker=NNMCLUB, tracker_class=NnmClub, torrserver=torr_server)

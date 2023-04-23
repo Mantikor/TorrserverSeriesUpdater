@@ -336,14 +336,13 @@ class LitrCC(TorrentsSource):
                 date_modified = i.get('date_modified')
                 image = i.get('image')
                 external_url = i.get('external_url')
-                for tracker in TRACKERS:
-                    tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
-                    torrent_id = TorrentsSource.is_tracker_link(url=external_url, patterns=tracker_url_patterns)
-                    if torrent_id:
-                        torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
-                                   'image': image, 'external_url': external_url, tracker_name_id: torrent_id}
-                        self.torrents_list.append(torrent)
-                        continue
+                torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
+                           'image': image, 'external_url': external_url}
+                self.torrents_list.append(torrent)
+                logging.debug(f'litr.cc: {str(t_id).lower()}')
+                logging.debug(f'litr.cc: {title}')
+                logging.debug(f'litr.cc: {external_url}')
+                logging.debug('='*150)
         logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
 
 

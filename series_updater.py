@@ -359,7 +359,6 @@ class LitrCC(TorrentsSource):
     def _raw2struct(self):
         filtered_data = dict()
         for i in self._raw.get('items', list()):
-            # ToDO: RSS contains new and old torrents (not only new), need to catch newest one
             t_id = i.get('id')
             if t_id:
                 title = i.get('title')

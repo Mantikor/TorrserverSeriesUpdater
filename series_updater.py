@@ -30,7 +30,7 @@ from datetime import datetime
 from operator import itemgetter
 
 
-__version__ = '0.5.1'
+__version__ = '0.5.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -570,7 +570,8 @@ def main():
                     ts_title = ts_item.get('title')
                     ts_hash = ts_item.get('t_hash')
                     ts_poster = ts_item.get('poster')
-                    hashes.append(ts_hash)
+                    if torrent_external_url == ts_external_url:
+                        hashes.append(ts_hash)
                 if torrent_hash not in hashes:
                     logging.info(f'Found update: {torrent_external_url}')
                     indexes = set()

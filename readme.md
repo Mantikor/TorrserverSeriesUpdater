@@ -2,7 +2,7 @@
 
 # Updater for torrents with new episodes of series on TorrServer, added from litr.cc (RSS-feed, supported all trackers) and added via TorrServer Adder: rutor.info(is), nnmclub.to, torrent.by.
 
-# Программа для обновления торрентов с сериалами в TorrServer. Обновляет раздачи с сериалами, которые обновляются путем добавления новых серий. Поддерживаются litr.cc (через чтение RSS-ленты, поддерживаюися все трэкеры) и раздачи, добавленные через TorrServer Adder с трэкеров rutor.info(is), nnmclub.to, torrent.by.
+# Программа для обновления торрентов с сериалами в TorrServer. Обновляет раздачи с сериалами, которые обновляются путем добавления новых серий. Поддерживаются litr.cc (через чтение RSS-ленты, поддерживаются все трэкеры) и раздачи, добавленные через TorrServer Adder с трэкеров rutor.info(is), nnmclub.to, torrent.by.
 
 ![](torrserver_updater.png)
 

@@ -26,10 +26,11 @@ import re
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
+from datetime import datetime
 from operator import itemgetter
 
 
-__version__ = '0.5.0'
+__version__ = '0.5.1'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -356,6 +357,7 @@ class LitrCC(TorrentsSource):
         pass
 
     def _raw2struct(self):
+        filtered_data = dict()
         for i in self._raw.get('items', list()):
             # ToDO: RSS contains new and old torrents (not only new), need to catch newest one
             t_id = i.get('id')
@@ -367,7 +369,17 @@ class LitrCC(TorrentsSource):
                 external_url = i.get('external_url')
                 torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
                            'image': image, 'external_url': external_url}
-                self.torrents_list.append(torrent)
+                old = filtered_data.get(external_url)
+                if old:
+                    old_date_modified = old.get('date_modified')
+                    old_date_modified_iso = datetime.fromisoformat(old_date_modified)
+                    date_modified_iso = datetime.fromisoformat(date_modified)
+                    if old_date_modified_iso < date_modified_iso:
+                        filtered_data[external_url] = torrent
+                else:
+                    filtered_data[external_url] = torrent
+        for _, v in filtered_data.items():
+            self.torrents_list.append(v)
         logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
 
 

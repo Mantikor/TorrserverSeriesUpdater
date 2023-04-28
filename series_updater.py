@@ -30,7 +30,7 @@ from datetime import datetime
 from operator import itemgetter
 
 
-__version__ = '0.5.2'
+__version__ = '0.5.3'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -379,7 +379,7 @@ class LitrCC(TorrentsSource):
                     filtered_data[external_url] = torrent
         for _, v in filtered_data.items():
             self.torrents_list.append(v)
-        logging.info(f'Litr.cc, torrents got: {len(self.torrents_list)}')
+        logging.info(f'litr.cc RSS-feed, torrents got: {len(self.torrents_list)}')
 
 
 class Config:
@@ -552,7 +552,7 @@ def main():
 
     if ts.args.litrcc:
         litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
-        logging.info(f'Litr.cc RSS uuid: {ts.args.litrcc}')
+        logging.info(f'litr.cc RSS uuid: {ts.args.litrcc}')
         litrcc = LitrCC(url=litrcc_rss_feed_url)
         torr_server.get_litrcc_torrents()
         for litrcc_item in litrcc.torrents_list:
@@ -560,22 +560,23 @@ def main():
             torrent_title = litrcc_item.get('title')
             torrent_hash = litrcc_item.get('id')
             torrent_poster = litrcc_item.get('image')
-            logging.info(f'Checking: {torrent_title}')
+            # logging.info(f'Checking: {torrent_title}')
             if torrent_external_url in torr_server.litrcc_torrents_cache:
                 # logging.info(f'{torrent_title} will be updated')
-                hashes = list()
+                hashes = dict()
                 for ts_item in torr_server.litrcc_torrents_list:
                     ts_external_url = ts_item.get('t_url')
                     ts_title = ts_item.get('title')
                     ts_hash = ts_item.get('t_hash')
                     ts_poster = ts_item.get('poster')
                     if torrent_external_url == ts_external_url:
-                        hashes.append(ts_hash)
-                if torrent_hash not in hashes:
+                        hashes[ts_hash] = ts_title
+                if torrent_hash not in hashes.keys():
+                    logging.info(f'{hashes.values()}')
                     logging.info(f'Found update: {torrent_external_url}')
                     indexes = set()
                     data = f'{{"LITRCC":{{"external_url":"{torrent_external_url}"}}}}'
-                    for t_hash in hashes:
+                    for t_hash in hashes.keys():
                         viewed_indexes_list = torr_server.get_torrent_info(t_hash=t_hash)
                         for vi in viewed_indexes_list:
                             indexes.add(vi.get('file_index'))
@@ -583,10 +584,12 @@ def main():
                                           'poster': torrent_poster, 'save_to_db': True, 'data': data,
                                           'hash': torrent_hash}
                     torr_server.add_updated_torrent(updated_torrent=torrserver_torrent, viewed_episodes=indexes)
-                    torr_server.cleanup_torrents(hashes=hashes)
+                    torr_server.cleanup_torrents(hashes=hashes.keys())
                 else:
+                    logging.info(f'{torrent_title}')
                     logging.info(f'No new episodes found: {torrent_external_url}')
             else:
+                logging.info(f'{torrent_title}')
                 logging.info(f'New hash, {torrent_hash}, will be added to the server list')
                 data = f'{{"LITRCC":{{"external_url":"{torrent_external_url}"}}}}'
                 torrserver_torrent = {'link': f'magnet:?xt=urn:btih:{torrent_hash}', 'title': torrent_title,

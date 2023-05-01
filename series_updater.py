@@ -572,7 +572,7 @@ def main():
                     if torrent_external_url == ts_external_url:
                         hashes[ts_hash] = ts_title
                 if torrent_hash not in hashes.keys():
-                    logging.info(f'{hashes.values()}')
+                    logging.info(f'{list(hashes.values())[0]}')
                     logging.info(f'Found update: {torrent_external_url}')
                     indexes = set()
                     data = f'{{"LITRCC":{{"external_url":"{torrent_external_url}"}}}}'

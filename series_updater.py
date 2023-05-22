@@ -28,9 +28,10 @@ from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 from datetime import datetime
 from operator import itemgetter
+from lxml import html
 
 
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -508,11 +509,28 @@ class Kinozal(TorrentsSource):
 
     @staticmethod
     def get_title(text):
-        return text
+        meta_og_title = html.fromstring(text).xpath('//meta[@property="og:title"]/@content')
+        if meta_og_title:
+            return meta_og_title[0]
+        else:
+            return None
 
     @staticmethod
     def get_poster(text):
-        return text
+        logo_href = html.fromstring(text).xpath('//div[@class="logo_new"]/a/@href')
+        if logo_href:
+            domain = logo_href[0]
+        else:
+            domain = 'https://kinozal.tv'
+        meta_og_image = html.fromstring(text).xpath('//meta[@property="og:image"]/@content')
+        if meta_og_image:
+            img_link_path = meta_og_image[0]
+            if 'http' in img_link_path:
+                return img_link_path
+            else:
+                return domain + img_link_path
+        else:
+            return None
 
 
 class ArgsParser:

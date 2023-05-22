@@ -30,7 +30,7 @@ from datetime import datetime
 from operator import itemgetter
 
 
-__version__ = '0.6.0'
+__version__ = '0.6.1'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -42,7 +42,6 @@ RUTOR = {'rutor_id': ['rutor.info', 'rutor.is']}
 NNMCLUB = {'nnmclub_id': ['nnmclub.to']}
 TORRENTBY = {'torrentby_id': ['torrent.by']}
 KINOZALTV = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me']}
-# https://kinozal.tv/get_srv_details.php?id=1977218&action=2
 TRACKERS = [RUTOR, NNMCLUB, TORRENTBY]
 
 
@@ -467,6 +466,72 @@ class TorrentBy(RuTor):
         search_res = pattern.search(html)
         if search_res:
             return search_res.group(1)
+        else:
+            return None
+
+
+class Kinozal(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._session = requests.Session()
+        self._login = None
+        self._password = None
+        self._server_url = 'https://kinozal.tv/details.php?id='
+        self._get_auth()
+
+    def _get_auth(self, login: str, password: str):
+        data = {'username': login, 'password': password, 'returnto': ''}
+        self._session.post(url='https://kinozal.tv/takelogin.php', data=data)
+
+    def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10,
+                        verify: bool = True):
+        if data is None:
+            data = dict()
+        if pref:
+            pref = f'/{pref}'
+        try:
+            url = f'{self._server_url}{pref}'
+            logging.debug(url)
+            if r_type == 'get':
+                resp = self._session.get(url=url, timeout=timeout, verify=verify)
+            elif r_type == 'post':
+                resp = self._session.post(url=url, json=data, timeout=timeout, verify=verify)
+            else:
+                resp = self._session.head(url=url, json=data, timeout=timeout, verify=verify)
+        except Exception as e:
+            logging.error(e)
+            logging.error(f'Connection problems with {self._server_url}{pref}')
+            # raise Exception
+            # sys.exit(1)
+            resp = None
+        return resp
+
+    def get_magnet(self, torrent_id):
+        if self._session:
+            resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
+            if resp.status_code == 200:
+                pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
+                search_res = pattern.search(resp.text)
+                if search_res:
+                    return search_res.group(1).lower()
+        return None
+
+    @staticmethod
+    def get_title(text):
+        pattern = re.compile(r'<a class=\"maintitle\" href="viewtopic.php\?t=([0-9]*)\">(.*?)</a>')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(2)
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', html)
+        if match:
+            return match.group(1)
         else:
             return None
 

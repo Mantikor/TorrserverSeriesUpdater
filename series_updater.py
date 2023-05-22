@@ -490,7 +490,8 @@ class Kinozal(TorrentsSource):
 
     def get_torrent_page(self, torrent_id):
         if self._session:
-            url = f'{self._server_url}{torrent_id}'
+            self._server_url = f'{self._server_url}{torrent_id}'
+            logging.debug(f'URL: {self._server_url}')
             resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
             pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
             search_res = pattern.search(resp.text)
@@ -498,13 +499,12 @@ class Kinozal(TorrentsSource):
                 self._t_hash = search_res.group(1).lower()
             else:
                 self._t_hash = None
-            resp = self._session.get(url=url)
+            resp = self._session.get(url=self._server_url)
         else:
             resp = None
         return resp
 
     def get_magnet(self, text):
-        logging.debug(f'Hash: {self._t_hash}')
         return self._t_hash
 
     @staticmethod
@@ -570,6 +570,7 @@ class ArgsParser:
 def update_tracker_torrents(tracker, tracker_class, torrserver):
     tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
     tracker_torrents = torrserver.get_tracker_torrents(tracker_id=tracker_name_id)
+    logging.info(f'Tracker: {tracker_url_patterns}; found torrents: {len(tracker_torrents)}')
     for torrent_id, torrents_list in tracker_torrents.items():
         cls = tracker_class
         resp = cls.get_torrent_page(torrent_id=torrent_id)

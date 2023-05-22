@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.6.2'
+__version__ = '0.6.3'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -288,10 +288,23 @@ class TorrServer(TorrentsSource):
                 self.delete_torrent_with_check(t_hash=hash_to_remove)
 
 
-class RuTor(TorrentsSource):
+class TorrentSite(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+        self._url_pattern = 'http://rutor.info/torrent/'
+        self._server_url = ''
+
+    def get_torrent_page(self, torrent_id):
+        self._server_url = f'{self._url_pattern}{torrent_id}'
+        logging.debug(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get')
+        return resp
+
+
+class RuTor(TorrentSite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._server_url = 'http://rutor.info/torrent/'
+        self._url_pattern = 'http://rutor.info/torrent/'
 
     @staticmethod
     def get_magnet(text):
@@ -414,10 +427,10 @@ class Config:
                 break
 
 
-class NnmClub(TorrentsSource):
+class NnmClub(TorrentSite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._server_url = 'https://nnmclub.to/forum/viewtopic.php?t='
+        self._url_pattern = 'https://nnmclub.to/forum/viewtopic.php?t='
 
     @staticmethod
     def get_magnet(text):
@@ -452,11 +465,11 @@ class NnmClub(TorrentsSource):
 class TorrentBy(RuTor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._server_url = 'https://torrent.by/'
+        self._url_pattern = 'https://torrent.by/'
 
     # if you have problems with error ssl certificate torrent.by, pass verify=False to disable verify ssl certificate
     def get_torrent_page(self, torrent_id):
-        self._server_url = f'{self._server_url}{torrent_id}'
+        self._server_url = f'{self._url_pattern}{torrent_id}'
         logging.debug(f'URL: {self._server_url}')
         resp = self._server_request(r_type='get', verify=False)
         return resp
@@ -472,25 +485,24 @@ class TorrentBy(RuTor):
             return None
 
 
-class Kinozal(TorrentsSource):
+class Kinozal(TorrentSite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._session = requests.Session()
         self._t_hash = None
         self._login = kwargs.get('login')
         self._password = kwargs.get('password')
-        self._server_url = 'https://kinozal.tv/details.php?id='
+        self._url_pattern = 'https://kinozal.tv/details.php?id='
         self._get_auth()
 
     def _get_auth(self):
         data = {'username': self._login, 'password': self._password, 'returnto': ''}
         logging.debug(f'login: {self._login}, password: {self._password}')
-        #self._session.auth = (self._login, self._password)
         self._session.post(url='https://kinozal.tv/takelogin.php', data=data)
 
     def get_torrent_page(self, torrent_id):
         if self._session:
-            self._server_url = f'{self._server_url}{torrent_id}'
+            self._server_url = f'{self._url_pattern}{torrent_id}'
             logging.debug(f'URL: {self._server_url}')
             resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
             pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')

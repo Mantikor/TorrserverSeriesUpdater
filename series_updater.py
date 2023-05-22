@@ -38,11 +38,11 @@ logging.basicConfig(level=logging.INFO,
                     handlers=[logging.StreamHandler()]
                     )
 
-RUTOR = {'rutor_id': ['rutor.info', 'rutor.is']}
-NNMCLUB = {'nnmclub_id': ['nnmclub.to']}
-TORRENTBY = {'torrentby_id': ['torrent.by']}
-KINOZALTV = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me']}
-TRACKERS = [RUTOR, NNMCLUB, TORRENTBY]
+RUTOR = {'rutor_id': ['rutor.info', 'rutor.is'], 'sep': '/'}
+NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '/'}
+TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
+KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL]
 
 
 class TorrentsSource(object):
@@ -112,11 +112,11 @@ class TorrentsSource(object):
         return torrents
 
     @staticmethod
-    def is_tracker_link(url, patterns=None):
+    def is_tracker_link(url, patterns=None, sep='/'):
         if patterns is None:
             patterns = list
         if url and any(domain in url for domain in patterns):
-            scratches = url.split('/')
+            scratches = url.split(sep)
             for part in scratches:
                 if part.isdecimal():
                     return part
@@ -182,7 +182,8 @@ class TorrServer(TorrentsSource):
                 torrent_size = i.get('torrent_size')
                 for tracker in TRACKERS:
                     tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
-                    torrent_id = TorrentsSource.is_tracker_link(url=t_url, patterns=tracker_url_patterns)
+                    _, sep = list(tracker.items())[1]
+                    torrent_id = TorrentsSource.is_tracker_link(url=t_url, patterns=tracker_url_patterns, sep=sep)
                     if torrent_id:
                         torrent = {'title': title, 'poster': poster, 't_url': t_url, 'timestamp': timestamp,
                                    't_hash': t_hash, 'stat': stat, 'stat_string': stat_string,
@@ -323,7 +324,7 @@ class RuTor(TorrentsSource):
     @staticmethod
     def is_tracker_link(url, patterns=None):
         if patterns is None:
-            patterns = list
+            patterns = list()
         if url and any(domain in url for domain in ['rutor.info', 'rutor.is']):
             scratches = url.split('/')
             for part in scratches:
@@ -474,66 +475,44 @@ class Kinozal(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._session = requests.Session()
-        self._login = None
-        self._password = None
+        self._t_hash = None
+        self._login = kwargs.get('login')
+        self._password = kwargs.get('password')
         self._server_url = 'https://kinozal.tv/details.php?id='
         self._get_auth()
 
-    def _get_auth(self, login: str, password: str):
-        data = {'username': login, 'password': password, 'returnto': ''}
+    def _get_auth(self):
+        data = {'username': self._login, 'password': self._password, 'returnto': ''}
+        logging.debug(f'login: {self._login}, password: {self._password}')
+        #self._session.auth = (self._login, self._password)
         self._session.post(url='https://kinozal.tv/takelogin.php', data=data)
 
-    def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10,
-                        verify: bool = True):
-        if data is None:
-            data = dict()
-        if pref:
-            pref = f'/{pref}'
-        try:
-            url = f'{self._server_url}{pref}'
-            logging.debug(url)
-            if r_type == 'get':
-                resp = self._session.get(url=url, timeout=timeout, verify=verify)
-            elif r_type == 'post':
-                resp = self._session.post(url=url, json=data, timeout=timeout, verify=verify)
+    def get_torrent_page(self, torrent_id):
+        if self._session:
+            url = f'{self._server_url}{torrent_id}'
+            resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
+            pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
+            search_res = pattern.search(resp.text)
+            if search_res:
+                self._t_hash = search_res.group(1).lower()
             else:
-                resp = self._session.head(url=url, json=data, timeout=timeout, verify=verify)
-        except Exception as e:
-            logging.error(e)
-            logging.error(f'Connection problems with {self._server_url}{pref}')
-            # raise Exception
-            # sys.exit(1)
+                self._t_hash = None
+            resp = self._session.get(url=url)
+        else:
             resp = None
         return resp
 
-    def get_magnet(self, torrent_id):
-        if self._session:
-            resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
-            if resp.status_code == 200:
-                pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
-                search_res = pattern.search(resp.text)
-                if search_res:
-                    return search_res.group(1).lower()
-        return None
+    def get_magnet(self, text):
+        logging.debug(f'Hash: {self._t_hash}')
+        return self._t_hash
 
     @staticmethod
     def get_title(text):
-        pattern = re.compile(r'<a class=\"maintitle\" href="viewtopic.php\?t=([0-9]*)\">(.*?)</a>')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
-        if search_res:
-            return search_res.group(2)
-        else:
-            return None
+        return text
 
     @staticmethod
     def get_poster(text):
-        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', html)
-        if match:
-            return match.group(1)
-        else:
-            return None
+        return text
 
 
 class ArgsParser:
@@ -553,6 +532,12 @@ class ArgsParser:
                                  help='update torrents from nnmclub.to')
         self.parser.add_argument('--torrentby', action='store_true', dest='torrentby', default=False,
                                  help='update torrents from torrent.by')
+        self.parser.add_argument('--kinozal', action='store_true', dest='kinozal', default=False,
+                                 help='update torrents from kinozal.tv')
+        self.parser.add_argument('--kz_login', action='store', dest='kz_login', default='',
+                                 help='login for kinozal.tv')
+        self.parser.add_argument('--kz_pass', action='store', dest='kz_pass', default='',
+                                 help='password for kinozal.tv')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -568,7 +553,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
     tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
     tracker_torrents = torrserver.get_tracker_torrents(tracker_id=tracker_name_id)
     for torrent_id, torrents_list in tracker_torrents.items():
-        cls = tracker_class()
+        cls = tracker_class
         resp = cls.get_torrent_page(torrent_id=torrent_id)
         if resp and resp.status_code == 200:
             t_title = cls.get_title(text=resp.text)
@@ -615,7 +600,7 @@ def main():
         torr_server.cleanup_torrents(perm=True)
 
     if ts.args.rutor:
-        update_tracker_torrents(tracker=RUTOR, tracker_class=RuTor, torrserver=torr_server)
+        update_tracker_torrents(tracker=RUTOR, tracker_class=RuTor(), torrserver=torr_server)
 
     if ts.args.litrcc:
         litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
@@ -664,10 +649,15 @@ def main():
                 torr_server.add_torrent(torrent=torrserver_torrent)
 
     if ts.args.nnmclub:
-        update_tracker_torrents(tracker=NNMCLUB, tracker_class=NnmClub, torrserver=torr_server)
+        update_tracker_torrents(tracker=NNMCLUB, tracker_class=NnmClub(), torrserver=torr_server)
 
     if ts.args.torrentby:
-        update_tracker_torrents(tracker=TORRENTBY, tracker_class=TorrentBy, torrserver=torr_server)
+        update_tracker_torrents(tracker=TORRENTBY, tracker_class=TorrentBy(), torrserver=torr_server)
+
+    if ts.args.kinozal:
+        update_tracker_torrents(tracker=KINOZAL,
+                                tracker_class=Kinozal(login=ts.args.kz_login, password=ts.args.kz_pass),
+                                torrserver=torr_server)
 
 
 if __name__ == '__main__':

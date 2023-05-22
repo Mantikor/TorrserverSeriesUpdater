@@ -30,7 +30,7 @@ from datetime import datetime
 from operator import itemgetter
 
 
-__version__ = '0.5.3'
+__version__ = '0.6.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -41,6 +41,8 @@ logging.basicConfig(level=logging.INFO,
 RUTOR = {'rutor_id': ['rutor.info', 'rutor.is']}
 NNMCLUB = {'nnmclub_id': ['nnmclub.to']}
 TORRENTBY = {'torrentby_id': ['torrent.by']}
+KINOZALTV = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me']}
+# https://kinozal.tv/get_srv_details.php?id=1977218&action=2
 TRACKERS = [RUTOR, NNMCLUB, TORRENTBY]
 
 

@@ -23,6 +23,8 @@ import logging
 import argparse
 import yaml
 import re
+import pickle
+import base64
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
@@ -31,7 +33,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.6.3'
+__version__ = '0.6.5 beta'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -289,16 +291,59 @@ class TorrServer(TorrentsSource):
 
 
 class TorrentSite(TorrentsSource):
+    # ToDo: move all auth (server auth and secrets files) routines to root TorrentSource class
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
-        self._url_pattern = 'http://rutor.info/torrent/'
+        self._secrets = dict()
+        self._url_pattern = ''
         self._server_url = ''
+        self._login_url = ''
+        self._session = requests.Session()
+        self._login = kwargs.get('login')
+        self._password = kwargs.get('password')
 
     def get_torrent_page(self, torrent_id):
-        self._server_url = f'{self._url_pattern}{torrent_id}'
-        logging.debug(f'URL: {self._server_url}')
-        resp = self._server_request(r_type='get')
+        resp = None
+        if self._url_pattern:
+            self._server_url = f'{self._url_pattern}{torrent_id}'
+            logging.debug(f'URL: {self._server_url}')
+            resp = self._server_request(r_type='get')
         return resp
+
+    def _load_secrets(self):
+        try:
+            with open('./secrets', 'rb') as secrets_file:
+                credentials = pickle.load(secrets_file)
+                self._secrets = credentials
+        except Exception as e:
+            logging.error(e)
+
+    def _save_secrets(self):
+        try:
+            with open('./secrets', 'wb') as secrets_file:
+                pickle.dump(self._secrets, secrets_file)
+        except Exception as e:
+            logging.error(e)
+
+    def _get_auth(self, tracker):
+        self._load_secrets()
+        login, password = self._secrets.get(tracker, (None, None))
+        if login and password:
+            self._login = login
+            self._password = base64.b64decode(password)
+        elif self._login and self._password:
+            encoded_pass = base64.b64encode(str(self._password).encode('ascii'))
+            self._secrets[tracker] = (self._login, encoded_pass)
+            self._save_secrets()
+        else:
+            self._login = self._password = None
+        if self._login and self._password and self._login_url:
+            data = {'username': self._login, 'password': self._password, 'returnto': ''}
+            logging.debug(f'login: {self._login}, password: {self._password}')
+            self._session.post(url=self._login_url, data=data)
+        else:
+            logging.warning(
+                f'Wrong auth data: login: {self._login}, password: {self._password}, url: {self._login_url}')
 
 
 class RuTor(TorrentSite):
@@ -488,17 +533,25 @@ class TorrentBy(RuTor):
 class Kinozal(TorrentSite):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._session = requests.Session()
-        self._t_hash = None
-        self._login = kwargs.get('login')
-        self._password = kwargs.get('password')
+        # self._session = requests.Session()
+        # self._t_hash = None
+        # self._login = kwargs.get('login')
+        # self._password = kwargs.get('password')
         self._url_pattern = 'https://kinozal.tv/details.php?id='
-        self._get_auth()
+        self._login_url = 'https://kinozal.tv/takelogin.php'
+        self._get_auth(tracker='kinozal')
 
-    def _get_auth(self):
-        data = {'username': self._login, 'password': self._password, 'returnto': ''}
-        logging.debug(f'login: {self._login}, password: {self._password}')
-        self._session.post(url='https://kinozal.tv/takelogin.php', data=data)
+    # def _get_auth(self):
+    #     if self._login and self._password:
+    #         data = {'username': self._login, 'password': self._password, 'returnto': ''}
+    #         with open('./secrets', 'wb') as secrets_file:
+    #             encoded_pass = base64.b64encode(str(self._password).encode('ascii'))
+    #             credentials = {'tracker': 'kinozal', 'username': self._login, 'password': encoded_pass}
+    #             pickle.dump(credentials, secrets_file)
+    #     else:
+    #         pass
+    #     logging.debug(f'login: {self._login}, password: {encoded_pass}')
+    #     self._session.post(url='https://kinozal.tv/takelogin.php', data=data)
 
     def get_torrent_page(self, torrent_id):
         if self._session:
@@ -597,7 +650,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
             for i in torrents_list:
                 old_hash = i.get('t_hash')
                 hashes.append(old_hash)
-            if t_hash not in hashes:
+            if t_hash and (t_hash not in hashes):
                 logging.info(f'Found update: {t_hash}')
                 indexes = set()
                 data = f'{{"TSA":{{"srcUrl":"{cls._server_url}"}}}}'

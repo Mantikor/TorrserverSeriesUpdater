@@ -636,6 +636,7 @@ class Rutracker(TorrentsSource):
 
     @staticmethod
     def get_title(text):
+        # ToDo: trail :: RuTracker.org from tail
         meta_description = html.fromstring(text).xpath('//meta[@name="description"]/@content')
         if meta_description:
             return meta_description[0]
@@ -644,10 +645,10 @@ class Rutracker(TorrentsSource):
 
     @staticmethod
     def get_poster(text):
-        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', html)
-        if match:
-            return match.group(1)
+        img_src = html.fromstring(text).xpath('//var[contains(@class, "postImg postImgAligned")]/@title')
+        # logging.debug('{}'.format(img_src))
+        if img_src:
+            return img_src[0]
         else:
             return None
 

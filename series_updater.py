@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.7.1 beta'
+__version__ = '0.7.2 beta'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -48,6 +48,7 @@ TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL]
 
 class TorrentsSource(object):
     def __init__(self, *args, **kwargs):
+        self.response_stub = type('obj', (object,), {'status_code': 520, 'reason': 'Unknown Error', 'text': ''})
         # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
         # self.add_logger_handler(debug=kwargs.get('debug', False))
         self._server_url = None
@@ -131,7 +132,7 @@ class TorrentsSource(object):
             logging.error(f'Connection problems with {self._server_url}{pref}')
             # raise Exception
             # sys.exit(1)
-            resp = None
+            resp = self.response_stub
         return resp
 
     # def get_torrent_page(self, torrent_id):

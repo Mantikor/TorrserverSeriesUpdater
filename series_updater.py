@@ -23,8 +23,6 @@ import logging
 import argparse
 import yaml
 import re
-import pickle
-import base64
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
@@ -33,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.6.5 beta'
+__version__ = '0.7.0 beta'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -53,6 +51,12 @@ class TorrentsSource(object):
         # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
         # self.add_logger_handler(debug=kwargs.get('debug', False))
         self._server_url = kwargs.get('server_url', 'http://127.0.0.1')
+        self._secrets: dict = dict()
+        self._url_pattern = None
+        self._login_url = None
+        self._session = requests.Session()
+        self._login = kwargs.get('login')
+        self._password = kwargs.get('password')
         self.torrents_list: list = list()
 
     def add_logger_handler(self, debug=False):
@@ -76,6 +80,35 @@ class TorrentsSource(object):
                 file_handler.setFormatter(formatter)
                 logging.getLogger(prefix).addHandler(file_handler)
 
+    @property
+    def secrets(self):
+        return self._secrets
+
+    @staticmethod
+    def load_secrets(filename='secrets'):
+        """Load secrets from json file
+
+        :return: result: dictionary with login/password pair for each tracker with auth
+        """
+        search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
+                        os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
+        for search_path in search_paths:
+            full_path = os.path.join(search_path, filename)
+            if os.path.isfile(full_path):
+                with open(full_path, mode='r', encoding='utf-8') as secrets_file:
+                    try:
+                        result = json.load(secrets_file)
+                        logging.info('Secrets loaded from file: {}'.format(full_path))
+                        logging.debug('{}'.format(result))
+                        return result
+                    except json.decoder.JSONDecodeError:
+                        logging.error('{} is not a valid json file'.format(full_path))
+                        logging.warning('No secrets loaded for this session!')
+                        return dict()
+        logging.warning('File: {} not found on paths: {}, or file format not valid'.format(filename, search_paths))
+        logging.warning('No secrets loaded for this session!')
+        return dict()
+
     def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10,
                         verify: bool = True):
         if data is None:
@@ -86,11 +119,11 @@ class TorrentsSource(object):
             url = f'{self._server_url}{pref}'
             logging.debug(url)
             if r_type == 'get':
-                resp = requests.get(url=url, timeout=timeout, verify=verify)
+                resp = self._session.get(url=url, timeout=timeout, verify=verify)
             elif r_type == 'post':
-                resp = requests.post(url=url, json=data, timeout=timeout, verify=verify)
+                resp = self._session.post(url=url, json=data, timeout=timeout, verify=verify)
             else:
-                resp = requests.head(url=url, json=data, timeout=timeout, verify=verify)
+                resp = self._session.head(url=url, json=data, timeout=timeout, verify=verify)
         except Exception as e:
             logging.error(e)
             logging.error(f'Connection problems with {self._server_url}{pref}')
@@ -99,10 +132,18 @@ class TorrentsSource(object):
             resp = None
         return resp
 
+    # def get_torrent_page(self, torrent_id):
+    #     self._server_url = f'{self._server_url}{torrent_id}'
+    #     logging.debug(f'URL: {self._server_url}')
+    #     resp = self._server_request(r_type='get')
+    #     return resp
+
     def get_torrent_page(self, torrent_id):
-        self._server_url = f'{self._server_url}{torrent_id}'
-        logging.debug(f'URL: {self._server_url}')
-        resp = self._server_request(r_type='get')
+        resp = None
+        if self._url_pattern:
+            self._server_url = f'{self._url_pattern}{torrent_id}'
+            logging.debug(f'URL: {self._server_url}')
+            resp = self._server_request(r_type='get')
         return resp
 
     def get_tracker_torrents(self, tracker_id=''):
@@ -132,11 +173,17 @@ class TorrServer(TorrentsSource):
         self._server_url = URL(kwargs.get('ts_url'))
         self._server_url: URL = URL.build(scheme=self._server_url.scheme, host=self._server_url.host,
                                           port=kwargs.get('ts_port'))
+        self._secrets = self.load_secrets()
+        self._login, self._password = list(self.secrets.get('torrserver', {None: None}).items())[0]
         self.torrents_list: list = list()
         self.litrcc_torrents_list: list = list()
         self.litrcc_torrents_cache: list = list()
         self._raw = self._get_torrents_list()
         self._raw2struct()
+
+    @property
+    def secrets(self):
+        return self._secrets
 
     def _get_torrents_list(self):
         resp = self._server_request(r_type='post', pref='torrents', data={'action': 'list'})
@@ -290,63 +337,7 @@ class TorrServer(TorrentsSource):
                 self.delete_torrent_with_check(t_hash=hash_to_remove)
 
 
-class TorrentSite(TorrentsSource):
-    # ToDo: move all auth (server auth and secrets files) routines to root TorrentSource class
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
-        self._secrets = dict()
-        self._url_pattern = ''
-        self._server_url = ''
-        self._login_url = ''
-        self._session = requests.Session()
-        self._login = kwargs.get('login')
-        self._password = kwargs.get('password')
-
-    def get_torrent_page(self, torrent_id):
-        resp = None
-        if self._url_pattern:
-            self._server_url = f'{self._url_pattern}{torrent_id}'
-            logging.debug(f'URL: {self._server_url}')
-            resp = self._server_request(r_type='get')
-        return resp
-
-    def _load_secrets(self):
-        try:
-            with open('./secrets', 'rb') as secrets_file:
-                credentials = pickle.load(secrets_file)
-                self._secrets = credentials
-        except Exception as e:
-            logging.error(e)
-
-    def _save_secrets(self):
-        try:
-            with open('./secrets', 'wb') as secrets_file:
-                pickle.dump(self._secrets, secrets_file)
-        except Exception as e:
-            logging.error(e)
-
-    def _get_auth(self, tracker):
-        self._load_secrets()
-        login, password = self._secrets.get(tracker, (None, None))
-        if login and password:
-            self._login = login
-            self._password = base64.b64decode(password)
-        elif self._login and self._password:
-            encoded_pass = base64.b64encode(str(self._password).encode('ascii'))
-            self._secrets[tracker] = (self._login, encoded_pass)
-            self._save_secrets()
-        else:
-            self._login = self._password = None
-        if self._login and self._password and self._login_url:
-            data = {'username': self._login, 'password': self._password, 'returnto': ''}
-            logging.debug(f'login: {self._login}, password: {self._password}')
-            self._session.post(url=self._login_url, data=data)
-        else:
-            logging.warning(
-                f'Wrong auth data: login: {self._login}, password: {self._password}, url: {self._login_url}')
-
-
-class RuTor(TorrentSite):
+class RuTor(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._url_pattern = 'http://rutor.info/torrent/'
@@ -472,7 +463,7 @@ class Config:
                 break
 
 
-class NnmClub(TorrentSite):
+class NnmClub(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._url_pattern = 'https://nnmclub.to/forum/viewtopic.php?t='
@@ -530,16 +521,21 @@ class TorrentBy(RuTor):
             return None
 
 
-class Kinozal(TorrentSite):
+class Kinozal(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self._session = requests.Session()
-        # self._t_hash = None
-        # self._login = kwargs.get('login')
-        # self._password = kwargs.get('password')
         self._url_pattern = 'https://kinozal.tv/details.php?id='
         self._login_url = 'https://kinozal.tv/takelogin.php'
-        self._get_auth(tracker='kinozal')
+        self._login, self._password = list(kwargs.get('secrets', dict()).get('kinozal_id', {None: None}).items())[0]
+        if self._login and self._password:
+            self._get_auth()
+        else:
+            logging.warning(f'Auth problem: login: {self._login}, password: {self._password}, url: {self._login_url}')
+
+    def _get_auth(self):
+        data = {'username': self._login, 'password': self._password, 'returnto': ''}
+        logging.debug(f'login: {self._login}, password: {self._password}')
+        self._session.post(url=self._login_url, data=data)
 
     # def _get_auth(self):
     #     if self._login and self._password:
@@ -634,6 +630,7 @@ class ArgsParser:
 
 def update_tracker_torrents(tracker, tracker_class, torrserver):
     tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
+    # login, password = list(torrserver.secrets.get(tracker_name_id, dict({None: None})).items())[0]
     tracker_torrents = torrserver.get_tracker_torrents(tracker_id=tracker_name_id)
     logging.info(f'Tracker: {tracker_url_patterns}; found torrents: {len(tracker_torrents)}')
     for torrent_id, torrents_list in tracker_torrents.items():
@@ -675,10 +672,10 @@ def main():
         # ToDO: add settings flow
         settings = Config(filename=ts.args.settings)
 
-    torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
-
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
 
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)
@@ -740,7 +737,7 @@ def main():
 
     if ts.args.kinozal:
         update_tracker_torrents(tracker=KINOZAL,
-                                tracker_class=Kinozal(login=ts.args.kz_login, password=ts.args.kz_pass),
+                                tracker_class=Kinozal(secrets=torr_server.secrets),
                                 torrserver=torr_server)
 
 

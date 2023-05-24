@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.7.0 beta'
+__version__ = '0.7.1 beta'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -50,14 +50,16 @@ class TorrentsSource(object):
     def __init__(self, *args, **kwargs):
         # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
         # self.add_logger_handler(debug=kwargs.get('debug', False))
-        self._server_url = kwargs.get('server_url', 'http://127.0.0.1')
+        self._server_url = None
         self._secrets: dict = dict()
-        self._url_pattern = None
-        self._login_url = None
+        self._url_pattern = kwargs.get('server_url', 'http://127.0.0.1')
         self._session = requests.Session()
-        self._login = kwargs.get('login')
-        self._password = kwargs.get('password')
         self.torrents_list: list = list()
+        self._login = None
+        self._password = None
+
+    def _get_auth(self):
+        self._session.auth = (self._login, self._password)
 
     def add_logger_handler(self, debug=False):
         handlers = [logging.StreamHandler()]
@@ -168,13 +170,23 @@ class TorrentsSource(object):
 
 
 class TorrServer(TorrentsSource):
+
+    tracker_id = 'torrserver'
+
     def __init__(self, *args, **kwargs):
+        # self._secrets = self.load_secrets()
         super().__init__(*args, **kwargs)
         self._server_url = URL(kwargs.get('ts_url'))
         self._server_url: URL = URL.build(scheme=self._server_url.scheme, host=self._server_url.host,
                                           port=kwargs.get('ts_port'))
         self._secrets = self.load_secrets()
-        self._login, self._password = list(self.secrets.get('torrserver', {None: None}).items())[0]
+        self._login, self._password = list(self.secrets.get(self.tracker_id, {None: None}).items())[0]
+        if self._login and self._password:
+            self._get_auth()
+        else:
+            logging.warning(
+                f'Auth problem on {self.tracker_id}: login: {self._login}, password: {self._password}')
+
         self.torrents_list: list = list()
         self.litrcc_torrents_list: list = list()
         self.litrcc_torrents_cache: list = list()
@@ -187,7 +199,11 @@ class TorrServer(TorrentsSource):
 
     def _get_torrents_list(self):
         resp = self._server_request(r_type='post', pref='torrents', data={'action': 'list'})
-        return resp.json()
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            logging.warning('{}, {}'.format(resp.status_code, resp.reason))
+            return dict()
 
     def get_torrent_info(self, t_hash):
         resp = self._server_request(r_type='post', pref='viewed', data={'action': 'list', 'hash': t_hash})
@@ -523,6 +539,7 @@ class TorrentBy(RuTor):
 
 class Kinozal(TorrentsSource):
     def __init__(self, *args, **kwargs):
+        # self._login_url = 'https://kinozal.tv/takelogin.php'
         super().__init__(*args, **kwargs)
         self._url_pattern = 'https://kinozal.tv/details.php?id='
         self._login_url = 'https://kinozal.tv/takelogin.php'
@@ -675,7 +692,7 @@ def main():
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()})
+    torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
 
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)
@@ -737,7 +754,7 @@ def main():
 
     if ts.args.kinozal:
         update_tracker_torrents(tracker=KINOZAL,
-                                tracker_class=Kinozal(secrets=torr_server.secrets),
+                                tracker_class=Kinozal(secrets=torr_server.secrets, tracker_id='kinozal_id'),
                                 torrserver=torr_server)
 
 

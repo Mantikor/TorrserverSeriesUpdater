@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.8.0'
+__version__ = '0.8.1'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -43,7 +43,8 @@ RUTOR = {'rutor_id': ['rutor.info', 'rutor.is'], 'sep': '/'}
 NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '/'}
 TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
-TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL]
+RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER]
 
 
 class TorrentsSource(object):
@@ -635,11 +636,9 @@ class Rutracker(TorrentsSource):
 
     @staticmethod
     def get_title(text):
-        pattern = re.compile(r'<a class=\"maintitle\" href="viewtopic.php\?t=([0-9]*)\">(.*?)</a>')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
-        if search_res:
-            return search_res.group(2)
+        meta_description = html.fromstring(text).xpath('//meta[@name="description"]/@content')
+        if meta_description:
+            return meta_description[0]
         else:
             return None
 
@@ -796,6 +795,9 @@ def main():
         update_tracker_torrents(tracker=KINOZAL,
                                 tracker_class=Kinozal(secrets=torr_server.secrets, tracker_id='kinozal_id'),
                                 torrserver=torr_server)
+
+    if ts.args.rutracker:
+        update_tracker_torrents(tracker=RUTRACKER, tracker_class=Rutracker(), torrserver=torr_server)
 
 
 if __name__ == '__main__':

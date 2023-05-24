@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.7.2 beta'
+__version__ = '0.7.3 beta'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -48,7 +48,7 @@ TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL]
 
 class TorrentsSource(object):
     def __init__(self, *args, **kwargs):
-        self.response_stub = type('obj', (object,), {'status_code': 520, 'reason': 'Unknown Error', 'text': ''})
+        self.unknown_response = type('obj', (object,), {'status_code': 520, 'reason': 'Unknown Error', 'text': ''})
         # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
         # self.add_logger_handler(debug=kwargs.get('debug', False))
         self._server_url = None
@@ -132,7 +132,7 @@ class TorrentsSource(object):
             logging.error(f'Connection problems with {self._server_url}{pref}')
             # raise Exception
             # sys.exit(1)
-            resp = self.response_stub
+            resp = self.unknown_response
         return resp
 
     # def get_torrent_page(self, torrent_id):
@@ -208,7 +208,11 @@ class TorrServer(TorrentsSource):
 
     def get_torrent_info(self, t_hash):
         resp = self._server_request(r_type='post', pref='viewed', data={'action': 'list', 'hash': t_hash})
-        return resp.json()
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            logging.warning('{}, {}'.format(resp.status_code, resp.reason))
+            return dict()
 
     def remove_torrent(self, t_hash):
         resp = self._server_request(r_type='post', pref='torrents', data={'action': 'rem', 'hash': t_hash})

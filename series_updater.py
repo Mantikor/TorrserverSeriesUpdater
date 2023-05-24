@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.7.3 beta'
+__version__ = '0.8.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -616,6 +616,43 @@ class Kinozal(TorrentsSource):
             return None
 
 
+class Rutracker(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._url_pattern = 'https://rutracker.org/forum/viewtopic.php?t='
+
+    @staticmethod
+    def get_magnet(text):
+        magnet_link = html.fromstring(text).xpath('//a[@class="magnet-link"]/@href')
+        if magnet_link:
+            magnet_link_href = magnet_link[0]
+            magnet_pattern = re.compile(r'magnet:\?xt=urn:btih:([a-fA-F0-9]{40})')
+            search_res = magnet_pattern.search(magnet_link_href)
+            if search_res:
+                return search_res.group(1).lower()
+        else:
+            return None
+
+    @staticmethod
+    def get_title(text):
+        pattern = re.compile(r'<a class=\"maintitle\" href="viewtopic.php\?t=([0-9]*)\">(.*?)</a>')
+        html = text.replace('\n', '')
+        search_res = pattern.search(html)
+        if search_res:
+            return search_res.group(2)
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', html)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
+
 class ArgsParser:
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
@@ -635,10 +672,8 @@ class ArgsParser:
                                  help='update torrents from torrent.by')
         self.parser.add_argument('--kinozal', action='store_true', dest='kinozal', default=False,
                                  help='update torrents from kinozal.tv')
-        self.parser.add_argument('--kz_login', action='store', dest='kz_login', default='',
-                                 help='login for kinozal.tv')
-        self.parser.add_argument('--kz_pass', action='store', dest='kz_pass', default='',
-                                 help='password for kinozal.tv')
+        self.parser.add_argument('--rutracker', action='store_true', dest='rutracker', default=False,
+                                 help='update torrents from rutracker.org')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')

@@ -27,11 +27,10 @@ from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
 from datetime import datetime
-from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.8.2'
+__version__ = '0.8.3'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -50,8 +49,6 @@ TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER]
 class TorrentsSource(object):
     def __init__(self, *args, **kwargs):
         self.unknown_response = type('obj', (object,), {'status_code': 520, 'reason': 'Unknown Error', 'text': ''})
-        # self.logger = logging.getLogger('_'.join([self.__class__.__name__, __version__]))
-        # self.add_logger_handler(debug=kwargs.get('debug', False))
         self._server_url = None
         self._secrets: dict = dict()
         self._url_pattern = kwargs.get('server_url', 'http://127.0.0.1')
@@ -102,15 +99,15 @@ class TorrentsSource(object):
                 with open(full_path, mode='r', encoding='utf-8') as secrets_file:
                     try:
                         result = json.load(secrets_file)
-                        logging.info('Secrets loaded from file: {}'.format(full_path))
-                        logging.debug('{}'.format(result))
+                        logging.info(f'Secrets loaded from file: {full_path}')
+                        logging.debug(f'{result}')
                         return result
                     except json.decoder.JSONDecodeError:
-                        logging.error('{} is not a valid json file'.format(full_path))
-                        logging.warning('No secrets loaded for this session!')
+                        logging.error(f'{full_path} is not a valid json file')
+                        logging.warning('No secrets loaded!')
                         return dict()
-        logging.warning('File: {} not found on paths: {}, or file format not valid'.format(filename, search_paths))
-        logging.warning('No secrets loaded for this session!')
+        logging.warning(f'File: {filename} not found on paths: {search_paths}, or file format not valid')
+        logging.warning('No secrets loaded!')
         return dict()
 
     def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10,
@@ -135,12 +132,6 @@ class TorrentsSource(object):
             # sys.exit(1)
             resp = self.unknown_response
         return resp
-
-    # def get_torrent_page(self, torrent_id):
-    #     self._server_url = f'{self._server_url}{torrent_id}'
-    #     logging.debug(f'URL: {self._server_url}')
-    #     resp = self._server_request(r_type='get')
-    #     return resp
 
     def get_torrent_page(self, torrent_id):
         resp = None
@@ -393,23 +384,11 @@ class RuTor(TorrentsSource):
         else:
             return None
 
-    @staticmethod
-    def is_tracker_link(url, patterns=None):
-        if patterns is None:
-            patterns = list()
-        if url and any(domain in url for domain in ['rutor.info', 'rutor.is']):
-            scratches = url.split('/')
-            for part in scratches:
-                if part.isdecimal():
-                    return part
-        return None
-
 
 class LitrCC(TorrentsSource):
     def __init__(self, url, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._server_url = URL(url)
-        # self.torrents_list: list = list()
         self._raw = self._get_torrents_list()
         self._raw2struct()
 
@@ -545,8 +524,8 @@ class TorrentBy(RuTor):
 
 class Kinozal(TorrentsSource):
     def __init__(self, *args, **kwargs):
-        # self._login_url = 'https://kinozal.tv/takelogin.php'
         super().__init__(*args, **kwargs)
+        self._t_hash = None
         self._url_pattern = 'https://kinozal.tv/details.php?id='
         self._login_url = 'https://kinozal.tv/takelogin.php'
         self._login, self._password = list(kwargs.get('secrets', dict()).get('kinozal_id', {None: None}).items())[0]
@@ -559,18 +538,6 @@ class Kinozal(TorrentsSource):
         data = {'username': self._login, 'password': self._password, 'returnto': ''}
         logging.debug(f'login: {self._login}, password: {self._password}')
         self._session.post(url=self._login_url, data=data)
-
-    # def _get_auth(self):
-    #     if self._login and self._password:
-    #         data = {'username': self._login, 'password': self._password, 'returnto': ''}
-    #         with open('./secrets', 'wb') as secrets_file:
-    #             encoded_pass = base64.b64encode(str(self._password).encode('ascii'))
-    #             credentials = {'tracker': 'kinozal', 'username': self._login, 'password': encoded_pass}
-    #             pickle.dump(credentials, secrets_file)
-    #     else:
-    #         pass
-    #     logging.debug(f'login: {self._login}, password: {encoded_pass}')
-    #     self._session.post(url='https://kinozal.tv/takelogin.php', data=data)
 
     def get_torrent_page(self, torrent_id):
         if self._session:
@@ -646,7 +613,6 @@ class Rutracker(TorrentsSource):
     @staticmethod
     def get_poster(text):
         img_src = html.fromstring(text).xpath('//var[contains(@class, "postImg postImgAligned")]/@title')
-        # logging.debug('{}'.format(img_src))
         if img_src:
             return img_src[0]
         else:
@@ -687,7 +653,6 @@ class ArgsParser:
 
 def update_tracker_torrents(tracker, tracker_class, torrserver):
     tracker_name_id, tracker_url_patterns = list(tracker.items())[0]
-    # login, password = list(torrserver.secrets.get(tracker_name_id, dict({None: None})).items())[0]
     tracker_torrents = torrserver.get_tracker_torrents(tracker_id=tracker_name_id)
     logging.info(f'Tracker: {tracker_url_patterns}; found torrents: {len(tracker_torrents)}')
     for torrent_id, torrents_list in tracker_torrents.items():

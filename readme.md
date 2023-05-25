@@ -1,8 +1,8 @@
 [![Docker Image release](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/docker-image-release.yml) [![Build binaries](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml/badge.svg)](https://github.com/Mantikor/TorrserverSeriesUpdater/actions/workflows/build-binaries.yml) [![Github All Releases](https://img.shields.io/github/downloads/Mantikor/TorrserverSeriesUpdater/total.svg)]()
 
-# Updater for torrents with new episodes of series on TorrServer, added from litr.cc (RSS-feed, supported all trackers) and added via TorrServer Adder: rutor.info(is), nnmclub.to, torrent.by.
+# Updater for torrents with new episodes of series on TorrServer, added from litr.cc (RSS-feed, supported all trackers) and added via TorrServer Adder: rutor.info(is), nnmclub.to, torrent.by, kinozal.tv, rutracker.org.
 
-# Программа для обновления торрентов с сериалами в TorrServer. Обновляет раздачи с сериалами, которые обновляются путем добавления новых серий. Поддерживаются litr.cc (через чтение RSS-ленты, поддерживаются все трэкеры) и раздачи, добавленные через TorrServer Adder с трэкеров rutor.info(is), nnmclub.to, torrent.by.
+# Программа для обновления торрентов с сериалами в TorrServer. Обновляет раздачи с сериалами, которые обновляются путем добавления новых серий. Поддерживаются litr.cc (через чтение RSS-ленты, поддерживаются все трэкеры) и раздачи, добавленные через TorrServer Adder с трэкеров rutor.info(is), nnmclub.to, torrent.by, kinozal.tv, rutracker.org.
 
 ![](torrserver_updater.png)
 
@@ -10,18 +10,33 @@
 
 Доступны следующие режимы:
 
-1. **_--rutor_**, обновление торрентов напрямую с rutor.info(is) (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены из трэкера rutor.info, если в раздаче появились новые серии, то торрент обновляется, с сохранением отметок о просмотренных сериях, старый торрент удаляется.
-2. **_--nnmclub_**, обновление торрентов напрямую с nnmclub.to (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены из трэкера nnmclub.to, если в раздаче появились новые серии, то торрент обновляется, с сохранением отметок о просмотренных сериях, старый торрент удаляется.
-3. **_--torrentby_**, обновление торрентов напрямую с torrent.by (не нужны никакие регистрации и прочее), в этом режиме берется список торрентов из TorrServer, определяется, какие из них добавлены из трэкера torrent.by, если в раздаче появились новые серии, то торрент обновляется, с сохранением отметок о просмотренных сериях, старый торрент удаляется.
-4. **_--litrcc_**,  обновление торрентов из RSS-ленты litr.cc (нужна регистрация на сайте, после чего требуется взять UUID для RSS-ленты и указать в параметрах при запуске программы). Поддерживаются все трэкеры поддерживаемые litr.cc. Торрент из RSS-ленты будет либо обновлен, либо автоматически добавлен в TorrServer, если его там нет. Если торрент с таким же хэшем был добавлен через TorrServer Adder или вручную, то он будет перезаписан, и в дальнейшем обновления будут браться из RSS-ленты litr.cc.
-5. **_--cleanup_**, режим для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее, ищет все раздачи с одинаковым id, оставляет раздачу с наибольшим количеством серий, а остальные удаляет (пока поддерживаются только раздачи с rutor, которые добавлены либо через TorrServer Adder либо через RSS-ленту litr.cc).
-6. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей (каждый из режимов может перезаписать торрент под себя и в последующем обновление будет происходить через данный режим, поэтому старайтесь избегать без лишней необходимости комбо-режим).
+1. **_--kinozal_**, обновление торрентов напрямую с kinozal.tv(guru)(me) (нужна регистрация и логин/пароль прописать в [файл secrets](#content-файл-с-данными-для-аутентификации)).
+2. **_--rutor_**, обновление торрентов напрямую с rutor.info(is) (регистрации не нужна).
+3. **_--nnmclub_**, обновление торрентов напрямую с nnmclub.to (регистрации не нужна).
+4. **_--torrentby_**, обновление торрентов напрямую с torrent.by (регистрации не нужна).
+5. **_--rutracker_**, обновление торрентов напрямую с rutracker.org (регистрации не нужна).
+6. **_--litrcc_**,  обновление торрентов из RSS-ленты litr.cc (нужна регистрация на сайте litr.cc, после чего требуется взять UUID для RSS-ленты и указать в параметрах при запуске программы). Поддерживаются все трэкеры, поддерживаемые litr.cc. Торрент из RSS-ленты будет либо обновлен, либо автоматически добавлен в TorrServer если его там нет. Если торрент с таким же хэшем был добавлен через TorrServer Adder или вручную, то он будет перезаписан и в дальнейшем обновления будут браться из RSS-ленты litr.cc.
+7. **_--cleanup_**, режим для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее, ищет все раздачи с одинаковым id, оставляет раздачу с наибольшим количеством серий, а остальные удаляет (пока поддерживаются только раздачи с rutor, которые добавлены либо через TorrServer Adder либо через RSS-ленту litr.cc).
+8. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей (каждый из режимов может перезаписать торрент под себя и в последующем обновление будет происходить через данный режим, поэтому старайтесь избегать без лишней необходимости комбо-режим).
 
 
 Программа распространяется как есть, баги и предложения по улучшению просьба добавлять в issues или писать на почту.
 
-Процесс использования выглядит так: вы добавляете торрент с rutor.info(is)/nnmclub.to/torrent.by в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий. 
+Процесс использования выглядит так: вы добавляете торрент с rutor.info(is)/nnmclub.to/torrent.by/kinozal.tv/rutracker.org в TorrServer через TorrServer Adder или добавляете торрент для мониторинга в litr.cc после чего периодически запускаете программу и она обновляет торренты если вышли новые серии сериала, сохраняя при этом отметки просмотренных серий.
+
 ## Установка
+
+### Файл с данными для аутентификации
+
+Файл формата json и с названием **secrets**, в папке рядом с исполняемым файлом, поддерживается аутентификация для Torrserver и Kinozal.tv.
+
+Пример содержимого:
+
+`{"torrserver": {"user": "pass"}, "kinozal_id": {"user1": "pass1"}}`
+
+с пустыми полями аутентификация не будет использоваться:
+
+`{"torrserver": {"": ""}, "kinozal_id": {"": ""}}`
 
 ### Готовые бинарные файлы
 
@@ -39,20 +54,34 @@
 
 Для Docker, скачиваем образ: `sudo docker pull mantik0r/torrserver_series_updater:latest` а потом запускаем: `sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`
 
-## English/Английский
+## English
 
-The following modes are available:
+There are following modes are available:
 
-1. **_--rutor_**, rutor direct torrents update (no registration needed), in this mode we get torrents list from TorrServer, check torrents added from rutor, after we search torrents on site and if new series allowed we update our torrent and preserve viewed episodes marks, old torrent will be deleted.
-2. **_--nnmclub_**, nnmclub.to direct torrents update (no registration needed), in this mode we get torrents list from TorrServer, check torrents added from nnmclub.to, after we search torrents on site and if new series allowed we update our torrent and preserve viewed episodes marks, old torrent will be deleted.
-3. **_--torrentby_**, torrent.by direct torrents update (no registration needed), in this mode we get torrents list from TorrServer, check torrents added from Torrent.by, after we search torrents on site and if new series allowed we update our torrent and preserve viewed episodes marks, old torrent will be deleted.
-4. **_--litrcc_**, torrents update from RSS-feed of litr.cc (you need registration on site, and you need RSS-feed UUID, you need to pass UUID to running parameters), supported all trackers supported by litr.cc, torrent will be updated or will be added to TorrServer. Torrents with same hash added by other modes may be overwritten and will be update with litrcc mode in the future.
-5. **_--cleanup_**, mode for search and deletion old torrents, with fewer episodes than current. Will be search all torrents with the same id, leaves torrent with the most series, and deletes other (supported torrents from rutor, added with TorrServer Adder or RSS-feed litr.cc).
-6. combo-mode: use combination of all supported keys (each of the modes can rewrite the torrent for itself and in the future the update will occur through this mode, so try to avoid the combo mode without unnecessary need).
+1. **_--kinozal_**, kinozal.tv direct torrents update (need registration and user/password in [secrets-file](#content-file-with-authentication-data)).
+2. **_--rutor_**, rutor.info direct torrents update (no registration needed).
+3. **_--nnmclub_**, nnmclub.to direct torrents update (no registration needed).
+4. **_--torrentby_**, torrent.by direct torrents update (no registration needed).
+5. **_--rutracker_**, rutracker.org direct torrents update (no registration needed).
+6. **_--litrcc_**, torrents update from RSS-feed of litr.cc (you need registration on site, and you need RSS-feed UUID, you need to pass UUID to running parameters), supported all trackers supported by litr.cc, torrent will be updated or will be added to TorrServer. Torrents with same hash added by other modes may be overwritten and will be update with litrcc mode in the future.
+7. **_--cleanup_**, mode for search and deletion old torrents, with fewer episodes than current. Will be search all torrents with the same id, leaves torrent with the most series, and deletes other (supported torrents from rutor, added with TorrServer Adder or RSS-feed litr.cc).
+8. combo-mode: use combination of all supported keys (each of the modes can rewrite the torrent for itself and in the future the update will occur through this mode, so try to avoid the combo mode without unnecessary need).
 
 The program is distributed as is, bugs and suggestions for improvement you can add to issues or write to the e-mail.
 
 ## Installation
+
+### File with authentication data
+
+Json-format file with name **secrets**, in the folder with executable binary file, supported authentication for Torrserver and Kinozal.tv.
+
+Sample content:
+
+`{"torrserver": {"user": "pass"}, "kinozal_id": {"user1": "pass1"}}`
+
+with empty fields of user and password, authentication will not be used:
+
+`{"torrserver": {"": ""}, "kinozal_id": {"": ""}}`
 
 ### Precompiled binary files
 

@@ -31,7 +31,7 @@ from operator import itemgetter
 from lxml import html
 
 
-__version__ = '0.8.1'
+__version__ = '0.8.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -636,10 +636,10 @@ class Rutracker(TorrentsSource):
 
     @staticmethod
     def get_title(text):
-        # ToDo: trail :: RuTracker.org from tail
-        meta_description = html.fromstring(text).xpath('//meta[@name="description"]/@content')
-        if meta_description:
-            return meta_description[0]
+        h1_maintitle = html.fromstring(text).xpath('//h1[@class="maintitle"]/a[@id="topic-title"]//text()')
+        if h1_maintitle:
+            h1_maintitle_text = ''.join(h1_maintitle)
+            return h1_maintitle_text
         else:
             return None
 

@@ -10,7 +10,7 @@
 
 Доступны следующие режимы:
 
-1. **_--kinozal_**, обновление торрентов напрямую с kinozal.tv(guru)(me) (нужна регистрация и логин/пароль прописать в [файл secrets](#content-файл-с-данными-для-аутентификации)).
+1. **_--kinozal_**, обновление торрентов напрямую с kinozal.tv(guru)(me) (нужна регистрация и логин/пароль прописать в [файл secrets](#файл-с-данными-для-аутентификации)).
 2. **_--rutor_**, обновление торрентов напрямую с rutor.info(is) (регистрации не нужна).
 3. **_--nnmclub_**, обновление торрентов напрямую с nnmclub.to (регистрации не нужна).
 4. **_--torrentby_**, обновление торрентов напрямую с torrent.by (регистрации не нужна).
@@ -58,7 +58,7 @@
 
 There are following modes are available:
 
-1. **_--kinozal_**, kinozal.tv direct torrents update (need registration and user/password in [secrets-file](#content-file-with-authentication-data)).
+1. **_--kinozal_**, kinozal.tv direct torrents update (need registration and user/password in [secrets-file](#file-with-authentication-data)).
 2. **_--rutor_**, rutor.info direct torrents update (no registration needed).
 3. **_--nnmclub_**, nnmclub.to direct torrents update (no registration needed).
 4. **_--torrentby_**, torrent.by direct torrents update (no registration needed).

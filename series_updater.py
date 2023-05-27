@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.3'
+__version__ = '0.8.4'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -670,7 +670,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                 old_hash = i.get('t_hash')
                 hashes.append(old_hash)
             if t_hash and (t_hash not in hashes):
-                logging.info(f'{torrents_list[0]}')
+                logging.info(f'{torrents_list[0].get("title")}')
                 logging.info(f'Found update: {t_hash}')
                 indexes = set()
                 data = f'{{"TSA":{{"srcUrl":"{cls._server_url}"}}}}'

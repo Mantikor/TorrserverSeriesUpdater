@@ -662,7 +662,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
             t_title = cls.get_title(text=resp.text)
             t_hash = cls.get_magnet(text=resp.text)
             t_poster = cls.get_poster(text=resp.text)
-            logging.info(f'Checking: {t_title}')
+            # logging.info(f'Checking: {t_title}')
             logging.debug(f'Poster: {t_poster}')
             logging.debug(f'New HASH: {t_hash}')
             hashes = list()
@@ -670,6 +670,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                 old_hash = i.get('t_hash')
                 hashes.append(old_hash)
             if t_hash and (t_hash not in hashes):
+                logging.info(f'{torrents_list[0]}')
                 logging.info(f'Found update: {t_hash}')
                 indexes = set()
                 data = f'{{"TSA":{{"srcUrl":"{cls._server_url}"}}}}'
@@ -683,6 +684,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                 torrserver.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
                 torrserver.cleanup_torrents(hashes=hashes)
             else:
+                logging.info(f'{t_title}')
                 logging.info(f'No updates found: {t_hash}')
 
 

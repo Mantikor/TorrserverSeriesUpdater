@@ -726,7 +726,7 @@ def main():
                     ts_poster = ts_item.get('poster')
                     if torrent_external_url == ts_external_url:
                         hashes[ts_hash] = ts_title
-                if torrent_hash not in hashes.keys():
+                if torrent_hash and (torrent_hash not in hashes.keys()):
                     logging.info(f'{list(hashes.values())[0]}')
                     logging.info(f'Found update: {torrent_external_url}')
                     indexes = set()

@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -640,6 +640,8 @@ class ArgsParser:
                                  help='update torrents from kinozal.tv')
         self.parser.add_argument('--rutracker', action='store_true', dest='rutracker', default=False,
                                  help='update torrents from rutracker.org')
+        self.parser.add_argument('--all', action='store_true', dest='all', default=False,
+                                 help='update torrents from all trackers: rutor, nnmclub, tby, kinozal, rutracker')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -700,6 +702,13 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
+
+    if ts.args.all:
+        ts.args.rutor = True
+        ts.args.nnmclub = True
+        ts.args.torrentby = True
+        ts.args.kinozal = True
+        ts.args.rutracker = True
 
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)

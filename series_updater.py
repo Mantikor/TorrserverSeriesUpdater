@@ -539,20 +539,23 @@ class Kinozal(TorrentsSource):
         data = {'username': self._login, 'password': self._password, 'returnto': ''}
         logging.debug(f'login: {self._login}, password: {self._password}')
         # ToDo: catch errors on connect, like as timeout
-        self._session.post(url=self._login_url, data=data)
+        self._server_request(r_type='post', url=self._login_url, data=data)
+        # self._session.post(url=self._login_url, data=data)
 
     def get_torrent_page(self, torrent_id):
         if self._session:
             self._server_url = f'{self._url_pattern}{torrent_id}'
             logging.debug(f'URL: {self._server_url}')
-            resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
+            resp = self._server_request(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
+            # resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
             pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
             search_res = pattern.search(resp.text)
             if search_res:
                 self._t_hash = search_res.group(1).lower()
             else:
                 self._t_hash = None
-            resp = self._session.get(url=self._server_url)
+            resp = self._server_request(url=self._server_url)
+            # resp = self._session.get(url=self._server_url)
         else:
             resp = None
         return resp

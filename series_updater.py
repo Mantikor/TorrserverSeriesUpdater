@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.6'
+__version__ = '0.8.7'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -110,14 +110,15 @@ class TorrentsSource(object):
         logging.warning('No secrets loaded!')
         return dict()
 
-    def _server_request(self, r_type: str = 'get', pref: str = '', data: dict = None, timeout: int = 10,
+    def _server_request(self, r_type: str = 'get', url=None, pref: str = '', data: dict = None, timeout: int = 10,
                         verify: bool = True):
         if data is None:
             data = dict()
         if pref:
             pref = f'/{pref}'
-        try:
+        if url is None:
             url = f'{self._server_url}{pref}'
+        try:
             logging.debug(url)
             if r_type == 'get':
                 resp = self._session.get(url=url, timeout=timeout, verify=verify)
@@ -127,7 +128,7 @@ class TorrentsSource(object):
                 resp = self._session.head(url=url, json=data, timeout=timeout, verify=verify)
         except Exception as e:
             logging.error(e)
-            logging.error(f'Connection problems with {self._server_url}{pref}')
+            logging.error(f'Connection problems with {url}')
             # raise Exception
             # sys.exit(1)
             resp = self.unknown_response

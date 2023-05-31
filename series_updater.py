@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.5'
+__version__ = '0.8.6'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -537,6 +537,7 @@ class Kinozal(TorrentsSource):
     def _get_auth(self):
         data = {'username': self._login, 'password': self._password, 'returnto': ''}
         logging.debug(f'login: {self._login}, password: {self._password}')
+        # ToDo: catch errors on connect, like as timeout
         self._session.post(url=self._login_url, data=data)
 
     def get_torrent_page(self, torrent_id):
@@ -704,11 +705,7 @@ def main():
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
 
     if ts.args.all:
-        ts.args.rutor = True
-        ts.args.nnmclub = True
-        ts.args.torrentby = True
-        ts.args.kinozal = True
-        ts.args.rutracker = True
+        ts.parser.set_defaults(rutor=True, nnmclub=True, torrentby=True, kinozal=True, rutracker=True)
 
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)

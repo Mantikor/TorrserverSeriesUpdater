@@ -624,6 +624,33 @@ class Rutracker(TorrentsSource):
             return None
 
 
+class Updater(TorrentsSource):
+
+    def __init__(self, *args, **kwargs):
+        # self._secrets = self.load_secrets()
+        super().__init__(*args, **kwargs)
+        self.schedule = True
+        self._server_url = 'https://api.github.com'
+
+    def _get_latest_releases(self):
+        resp = self._server_request(r_type='get', pref='repos/Mantikor/TorrserverSeriesUpdater/releases/latest')
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            logging.warning('{}, {}'.format(resp.status_code, resp.reason))
+            return dict()
+
+    def check_updates(self):
+        if self.schedule:
+            releases = self._get_latest_releases()
+            ver = releases.get('tag_name')
+            comment = releases.get('name')
+            logging.info(f'Found new release: {ver}')
+            logging.info(f'{comment}')
+        else:
+            pass
+
+
 class ArgsParser:
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
@@ -705,6 +732,9 @@ def main():
 
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    version = Updater()
+    version.check_updates()
 
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
 

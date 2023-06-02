@@ -767,7 +767,7 @@ def main():
     version = Updater()
     if ts.args.version:
         version.check_updates(only_new=False)
-        exit(0)
+        sys.exit(0)
     else:
         version.check_scheduled_updates(schedule=version.schedule)
 

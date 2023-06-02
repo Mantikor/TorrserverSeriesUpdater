@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.7'
+__version__ = '0.8.9'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -93,6 +93,7 @@ class TorrentsSource(object):
         """
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
                         os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
+        logging.debug(f'Search paths: {search_paths}')
         for search_path in search_paths:
             full_path = os.path.join(search_path, filename)
             if os.path.isfile(full_path):
@@ -629,7 +630,7 @@ class Updater(TorrentsSource):
     def __init__(self, *args, **kwargs):
         # self._secrets = self.load_secrets()
         super().__init__(*args, **kwargs)
-        self.schedule = True
+        self.schedule = 2
         self._server_url = 'https://api.github.com'
 
     def _get_latest_releases(self):
@@ -640,15 +641,43 @@ class Updater(TorrentsSource):
             logging.warning('{}, {}'.format(resp.status_code, resp.reason))
             return dict()
 
-    def check_updates(self):
-        if self.schedule:
-            releases = self._get_latest_releases()
-            ver = releases.get('tag_name')
-            comment = releases.get('name')
+    @staticmethod
+    def is_there_new_version(remote_v, local_v=__version__):
+        pattern = re.compile(r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+        search_res = pattern.search(local_v)
+        if search_res:
+            local_version = search_res.group(0)
+        else:
+            local_version = '0.0.0'
+        search_res = pattern.search(remote_v)
+        if search_res:
+            remote_version = search_res.group(0)
+        else:
+            remote_version = '0.0.0'
+        local_version = local_version.split('.')
+        remote_version = remote_version.split('.')
+        for local_sub_v, remote_sub_v in list(zip(local_version, remote_version)):
+            if local_sub_v < remote_sub_v:
+                return True
+        return False
+
+    def check_updates(self, only_new=True):
+        releases = self._get_latest_releases()
+        ver = releases.get('tag_name')
+        comment = releases.get('name')
+        new_version = self.is_there_new_version(remote_v=ver)
+        if new_version:
             logging.info(f'Found new release: {ver}')
             logging.info(f'{comment}')
-        else:
-            pass
+        elif not only_new:
+            logging.info(f'Current version on github: {ver}')
+            logging.info(f'{comment}')
+
+    def check_scheduled_updates(self, schedule):
+        dt = datetime.now()
+        today = dt.isoweekday()
+        if schedule == today:
+            self.check_updates()
 
 
 class ArgsParser:
@@ -674,6 +703,8 @@ class ArgsParser:
                                  help='update torrents from rutracker.org')
         self.parser.add_argument('--all', action='store_true', dest='all', default=False,
                                  help='update torrents from all trackers: rutor, nnmclub, tby, kinozal, rutracker')
+        self.parser.add_argument('--version', action='store_true', dest='version', default=False,
+                                 help='check updates and new releases on github page')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -734,7 +765,11 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     version = Updater()
-    version.check_updates()
+    if ts.args.version:
+        version.check_updates(only_new=False)
+        exit(0)
+    else:
+        version.check_scheduled_updates(schedule=version.schedule)
 
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
 

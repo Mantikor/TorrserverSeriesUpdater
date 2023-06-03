@@ -94,6 +94,9 @@ class TorrentsSource(object):
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
                         os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__)),
                         os.path.dirname(os.path.realpath(__file__))]
+        if getattr(sys, 'frozen', False):
+            search_paths.append(sys._MEIPASS)
+            search_paths.append(os.path.dirname(sys.executable))
         logging.debug(f'Search paths: {search_paths}')
         for search_path in search_paths:
             full_path = os.path.join(search_path, filename)

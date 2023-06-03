@@ -92,7 +92,8 @@ class TorrentsSource(object):
         :return: result: dictionary with login/password pair for each tracker with auth
         """
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
-                        os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
+                        os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__)),
+                        os.path.dirname(os.path.realpath(__file__))]
         logging.debug(f'Search paths: {search_paths}')
         for search_path in search_paths:
             full_path = os.path.join(search_path, filename)

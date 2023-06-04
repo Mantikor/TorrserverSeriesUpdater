@@ -632,7 +632,7 @@ class Updater(TorrentsSource):
     def __init__(self, *args, **kwargs):
         # self._secrets = self.load_secrets()
         super().__init__(*args, **kwargs)
-        self.schedule = 2
+        self.schedule = kwargs.get('schedule', -1)
         self._server_url = 'https://api.github.com'
 
     def _get_latest_releases(self):
@@ -770,7 +770,7 @@ def main():
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    version = Updater()
+    version = Updater(schedule=2)
     if ts.args.version:
         version.check_updates(only_new=False)
         sys.exit(0)

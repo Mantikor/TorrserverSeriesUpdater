@@ -92,13 +92,11 @@ class TorrentsSource(object):
         :return: result: dictionary with login/password pair for each tracker with auth
         """
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
-                        os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__)),
-                        os.path.dirname(os.path.realpath(__file__))]
+                        os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
         if getattr(sys, 'frozen', False):
-            search_paths.append(sys._MEIPASS)
             search_paths.append(os.path.dirname(sys.executable))
         logging.debug(f'Search paths: {search_paths}')
-        for search_path in search_paths:
+        for search_path in set(search_paths):
             full_path = os.path.join(search_path, filename)
             if os.path.isfile(full_path):
                 with open(full_path, mode='r', encoding='utf-8') as secrets_file:
@@ -676,6 +674,10 @@ class Updater(TorrentsSource):
         elif not only_new:
             logging.info(f'Current version on github: {ver}')
             logging.info(f'{comment}')
+            r_assets = releases.get('assets', list())
+            for asset in r_assets:
+                download_url = asset.get('browser_download_url')
+                logging.info(f'{download_url}')
 
     def check_scheduled_updates(self, schedule):
         dt = datetime.now()

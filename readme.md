@@ -65,9 +65,11 @@ There are following modes are available:
 3. **_--nnmclub_**, nnmclub.to direct torrents update (no registration needed).
 4. **_--torrentby_**, torrent.by direct torrents update (no registration needed).
 5. **_--rutracker_**, rutracker.org direct torrents update (no registration needed).
-6. **_--litrcc_**, torrents update from RSS-feed of litr.cc (you need registration on site, and you need RSS-feed UUID, you need to pass UUID to running parameters), supported all trackers supported by litr.cc, torrent will be updated or will be added to TorrServer. Torrents with same hash added by other modes may be overwritten and will be update with litrcc mode in the future.
-7. **_--cleanup_**, mode for search and deletion old torrents, with fewer episodes than current. Will be search all torrents with the same id, leaves torrent with the most series, and deletes other (supported torrents from rutor, added with TorrServer Adder or RSS-feed litr.cc).
-8. combo-mode: use combination of all supported keys (each of the modes can rewrite the torrent for itself and in the future the update will occur through this mode, so try to avoid the combo mode without unnecessary need).
+6. **_--all_**, for update from all supported trackers.
+7. **_--litrcc_**, torrents update from RSS-feed of litr.cc (you need registration on site, and you need RSS-feed UUID, you need to pass UUID to running parameters), supported all trackers supported by litr.cc, torrent will be updated or will be added to TorrServer. Torrents with same hash added by other modes may be overwritten and will be update with litrcc mode in the future.
+8. **_--cleanup_**, mode for search and deletion old torrents, with fewer episodes than current. Will be search all torrents with the same id, leaves torrent with the most series, and deletes other (supported torrents from rutor, added with TorrServer Adder or RSS-feed litr.cc).
+9. **_--version_**, force checking of new release version on github with display download links, in any case will display last release (automatic checking of new release will check on Tuesday, display result only if new release found).
+10. combo-mode: use combination of all supported keys (each of the modes can rewrite the torrent for itself and in the future the update will occur through this mode, so try to avoid the combo mode without unnecessary need).
 
 The program is distributed as is, bugs and suggestions for improvement you can add to issues or write to the e-mail.
 

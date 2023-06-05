@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.10'
+__version__ = '0.9.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -39,7 +39,7 @@ logging.basicConfig(level=logging.INFO,
                     )
 
 RUTOR = {'rutor_id': ['rutor.info', 'rutor.is'], 'sep': '/'}
-NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '/'}
+NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '='}
 TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
@@ -56,6 +56,9 @@ class TorrentsSource(object):
         self.torrents_list: list = list()
         self._login = None
         self._password = None
+        self._proxy = kwargs.get('proxy', dict())
+        if self._proxy:
+            self._session.proxies = {'http': self._proxy, 'https': self._proxy}
 
     def _get_auth(self):
         self._session.auth = (self._login, self._password)
@@ -121,6 +124,7 @@ class TorrentsSource(object):
             pref = f'/{pref}'
         if url is None:
             url = f'{self._server_url}{pref}'
+        logging.debug(f'Proxy settings: {self._session.proxies}')
         try:
             logging.debug(url)
             if r_type == 'get':
@@ -159,10 +163,15 @@ class TorrentsSource(object):
         if patterns is None:
             patterns = list
         if url and any(domain in url for domain in patterns):
-            scratches = url.split(sep)
-            for part in scratches:
-                if part.isdecimal():
-                    return part
+            try:
+                clean_url = url.split('&')[0]
+                scratches = clean_url.split(sep)
+                for part in scratches:
+                    if part.isdecimal():
+                        return part
+            except Exception as e:
+                logging.error(e)
+                return None
         return None
 
 
@@ -173,6 +182,7 @@ class TorrServer(TorrentsSource):
     def __init__(self, *args, **kwargs):
         # self._secrets = self.load_secrets()
         super().__init__(*args, **kwargs)
+        self._session.proxies = dict()
         self._server_url = URL(kwargs.get('ts_url'))
         self._server_url: URL = URL.build(scheme=self._server_url.scheme, host=self._server_url.host,
                                           port=kwargs.get('ts_port'))
@@ -712,6 +722,8 @@ class ArgsParser:
                                  help='update torrents from all trackers: rutor, nnmclub, tby, kinozal, rutracker')
         self.parser.add_argument('--version', action='store_true', dest='version', default=False,
                                  help='check updates and new releases on github page')
+        self.parser.add_argument('--proxy', action='store', dest='proxy', type=str, default='',
+                                 help='proxy server string in format: proxy-type://ip-address:port')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -787,7 +799,7 @@ def main():
         torr_server.cleanup_torrents(perm=True)
 
     if ts.args.rutor:
-        update_tracker_torrents(tracker=RUTOR, tracker_class=RuTor(), torrserver=torr_server)
+        update_tracker_torrents(tracker=RUTOR, tracker_class=RuTor(proxy=ts.args.proxy), torrserver=torr_server)
 
     if ts.args.litrcc:
         litrcc_rss_feed_url = f'https://litr.cc/feed/{ts.args.litrcc}/json'
@@ -836,18 +848,18 @@ def main():
                 torr_server.add_torrent(torrent=torrserver_torrent)
 
     if ts.args.nnmclub:
-        update_tracker_torrents(tracker=NNMCLUB, tracker_class=NnmClub(), torrserver=torr_server)
+        update_tracker_torrents(tracker=NNMCLUB, tracker_class=NnmClub(proxy=ts.args.proxy), torrserver=torr_server)
 
     if ts.args.torrentby:
-        update_tracker_torrents(tracker=TORRENTBY, tracker_class=TorrentBy(), torrserver=torr_server)
+        update_tracker_torrents(tracker=TORRENTBY, tracker_class=TorrentBy(proxy=ts.args.proxy), torrserver=torr_server)
 
     if ts.args.kinozal:
         update_tracker_torrents(tracker=KINOZAL,
-                                tracker_class=Kinozal(secrets=torr_server.secrets, tracker_id='kinozal_id'),
-                                torrserver=torr_server)
+                                tracker_class=Kinozal(secrets=torr_server.secrets, proxy=ts.args.proxy,
+                                                      tracker_id='kinozal_id'), torrserver=torr_server)
 
     if ts.args.rutracker:
-        update_tracker_torrents(tracker=RUTRACKER, tracker_class=Rutracker(), torrserver=torr_server)
+        update_tracker_torrents(tracker=RUTRACKER, tracker_class=Rutracker(proxy=ts.args.proxy), torrserver=torr_server)
 
 
 if __name__ == '__main__':

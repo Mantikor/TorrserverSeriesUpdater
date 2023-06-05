@@ -191,8 +191,8 @@ class TorrServer(TorrentsSource):
         if self._login and self._password:
             self._get_auth()
         else:
-            logging.warning(
-                f'Auth problem on {self.tracker_id}: login: {self._login}, password: {self._password}')
+            logging.warning(f'Login: {self._login} and/or password: {self._password} is empty, '
+                            f'auth on {self.tracker_id} switched off')
 
         self.torrents_list: list = list()
         self.litrcc_torrents_list: list = list()

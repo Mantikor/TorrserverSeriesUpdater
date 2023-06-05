@@ -19,7 +19,8 @@
 7. **_--litrcc_**,  обновление торрентов из RSS-ленты litr.cc (нужна регистрация на сайте litr.cc, после чего требуется взять UUID для RSS-ленты и указать в параметрах при запуске программы). Поддерживаются все трэкеры, поддерживаемые litr.cc. Торрент из RSS-ленты будет либо обновлен, либо автоматически добавлен в TorrServer если его там нет. Если торрент с таким же хэшем был добавлен через TorrServer Adder или вручную, то он будет перезаписан и в дальнейшем, обновления будут браться из RSS-ленты litr.cc.
 8. **_--cleanup_**, режим для поиска и удаления старых торрентов с количеством серий, меньшим чем текущее, ищет все раздачи с одинаковым id, оставляет раздачу с наибольшим количеством серий, а остальные удаляет (пока поддерживаются только раздачи с rutor, которые добавлены либо через TorrServer Adder либо через RSS-ленту litr.cc).
 9. **_--version_**, принудительная проверка новой версии на github с выводом ссылок на скачивание файлов, в любом случае покажет последний релиз (автоматическая проверка нового релиза проводится каждый вторник, вывод результата только при наличии нового релиза).
-10. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей (каждый из режимов может перезаписать торрент под себя и в последующем обновление будет происходить через данный режим, поэтому старайтесь избегать без лишней необходимости комбо-режим).
+10. **_--proxy_**, прокси-сервер в формате: proxy-type://ip-address:port (proxy-type - http, https или socks5).
+11. комбо-режим: можно указать сочетание из любых вышеперечисленных ключей (каждый из режимов может перезаписать торрент под себя и в последующем обновление будет происходить через данный режим, поэтому старайтесь избегать без лишней необходимости комбо-режим).
 
 
 Программа распространяется как есть, баги и предложения по улучшению просьба добавлять в issues или писать на почту.
@@ -69,7 +70,8 @@ There are following modes are available:
 7. **_--litrcc_**, torrents update from RSS-feed of litr.cc (you need registration on site, and you need RSS-feed UUID, you need to pass UUID to running parameters), supported all trackers supported by litr.cc, torrent will be updated or will be added to TorrServer. Torrents with same hash added by other modes may be overwritten and will be update with litrcc mode in the future.
 8. **_--cleanup_**, mode for search and deletion old torrents, with fewer episodes than current. Will be search all torrents with the same id, leaves torrent with the most series, and deletes other (supported torrents from rutor, added with TorrServer Adder or RSS-feed litr.cc).
 9. **_--version_**, force checking of new release version on github with display download links, in any case will display last release (automatic checking of new release will check on Tuesday, display result only if new release found).
-10. combo-mode: use combination of all supported keys (each of the modes can rewrite the torrent for itself and in the future the update will occur through this mode, so try to avoid the combo mode without unnecessary need).
+10. **_--proxy_**, proxy-server string in format: proxy-type://ip-address:port (proxy-type - http, https or socks5).
+11. combo-mode: use combination of all supported keys (each of the modes can rewrite the torrent for itself and in the future the update will occur through this mode, so try to avoid the combo mode without unnecessary need).
 
 The program is distributed as is, bugs and suggestions for improvement you can add to issues or write to the e-mail.
 

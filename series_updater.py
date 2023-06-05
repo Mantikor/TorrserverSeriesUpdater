@@ -30,7 +30,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.8.9'
+__version__ = '0.8.10'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -426,14 +426,15 @@ class LitrCC(TorrentsSource):
                 torrent = {'id': str(t_id).lower(), 'title': title, 'url': url, 'date_modified': date_modified,
                            'image': image, 'external_url': external_url}
                 old = filtered_data.get(external_url)
-                if old:
-                    old_date_modified = old.get('date_modified')
-                    old_date_modified_iso = datetime.fromisoformat(old_date_modified)
-                    date_modified_iso = datetime.fromisoformat(date_modified)
-                    if old_date_modified_iso < date_modified_iso:
+                if external_url:
+                    if old:
+                        old_date_modified = old.get('date_modified')
+                        old_date_modified_iso = datetime.fromisoformat(old_date_modified)
+                        date_modified_iso = datetime.fromisoformat(date_modified)
+                        if old_date_modified_iso < date_modified_iso:
+                            filtered_data[external_url] = torrent
+                    else:
                         filtered_data[external_url] = torrent
-                else:
-                    filtered_data[external_url] = torrent
         for _, v in filtered_data.items():
             self.torrents_list.append(v)
         logging.info(f'litr.cc RSS-feed, torrents got: {len(self.torrents_list)}')

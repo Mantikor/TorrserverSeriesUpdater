@@ -722,8 +722,18 @@ class AniDub(TorrentsSource):
         super().__init__(*args, **kwargs)
         self._url_pattern = ''
 
+    def get_torrent_page(self, torrent_id):
+        self._server_url = torrent_id
+        logging.debug(f'URL: {self._server_url}')
+        resp = self._server_request(r_type='get')
+        return resp
+
     @staticmethod
     def get_magnet(text):
+        # get .torrent file link
+        # download the .torrent-file
+        # get_hash_from_torrent_file(.torrent-file content)
+        # return hash
         pass
 
     @staticmethod
@@ -732,7 +742,8 @@ class AniDub(TorrentsSource):
 
     @staticmethod
     def get_poster(text):
-        pass
+        image_src = html.fromstring(text).xpath('//div[contains(@class, "poster_bg")]//img/@src')
+        return image_src
 
 
 class ArgsParser:

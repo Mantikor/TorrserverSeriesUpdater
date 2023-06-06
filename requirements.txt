@@ -8,3 +8,4 @@ urllib3==2.0.2
 yarl==1.9.2
 lxml==4.9.2
 PySocks==1.7.1
+bencode.py==4.0.0

@@ -23,6 +23,8 @@ import logging
 import argparse
 import yaml
 import re
+import bencodepy
+import hashlib
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
@@ -30,7 +32,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.9.0'
+__version__ = '0.10.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -43,7 +45,22 @@ NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '='}
 TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
+ANIDUB = {'anidub_id': ['anidub.com'], 'sep': '='}
+ANILIBRIA = {}
+
 TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER]
+
+
+def get_hash_from_torrent_file(file_content):
+    try:
+        metadata = bencodepy.decode(file_content)
+        subj = metadata[b'info']
+        hash_contents = bencodepy.encode(subj)
+        hex_digest = hashlib.sha1(hash_contents).hexdigest()
+    except Exception as e:
+        logging.error(e)
+        hex_digest = None
+    return hex_digest
 
 
 class TorrentsSource(object):
@@ -116,7 +133,7 @@ class TorrentsSource(object):
         logging.warning('No secrets loaded!')
         return dict()
 
-    def _server_request(self, r_type: str = 'get', url=None, pref: str = '', data: dict = None, timeout: int = 10,
+    def server_request(self, r_type: str = 'get', url=None, pref: str = '', data: dict = None, timeout: int = 10,
                         verify: bool = True):
         if data is None:
             data = dict()
@@ -146,7 +163,7 @@ class TorrentsSource(object):
         if self._url_pattern:
             self._server_url = f'{self._url_pattern}{torrent_id}'
             logging.debug(f'URL: {self._server_url}')
-            resp = self._server_request(r_type='get')
+            resp = self.server_request(r_type='get')
         return resp
 
     def get_tracker_torrents(self, tracker_id=''):
@@ -205,7 +222,7 @@ class TorrServer(TorrentsSource):
         return self._secrets
 
     def _get_torrents_list(self):
-        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'list'})
+        resp = self.server_request(r_type='post', pref='torrents', data={'action': 'list'})
         if resp.status_code == 200:
             return resp.json()
         else:
@@ -213,7 +230,7 @@ class TorrServer(TorrentsSource):
             return dict()
 
     def get_torrent_info(self, t_hash):
-        resp = self._server_request(r_type='post', pref='viewed', data={'action': 'list', 'hash': t_hash})
+        resp = self.server_request(r_type='post', pref='viewed', data={'action': 'list', 'hash': t_hash})
         if resp.status_code == 200:
             return resp.json()
         else:
@@ -221,21 +238,21 @@ class TorrServer(TorrentsSource):
             return dict()
 
     def remove_torrent(self, t_hash):
-        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'rem', 'hash': t_hash})
+        resp = self.server_request(r_type='post', pref='torrents', data={'action': 'rem', 'hash': t_hash})
         return resp
 
     def add_torrent(self, torrent):
         data = {'action': 'add'} | torrent
-        resp = self._server_request(r_type='post', pref='torrents', data=data)
+        resp = self.server_request(r_type='post', pref='torrents', data=data)
         return resp
 
     def get_torrent(self, t_hash):
-        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'get', 'hash': t_hash})
+        resp = self.server_request(r_type='post', pref='torrents', data={'action': 'get', 'hash': t_hash})
         return resp
 
     def set_viewed(self, viewed):
         data = {'action': 'set'} | viewed
-        resp = self._server_request(r_type='post', pref='viewed', data=data)
+        resp = self.server_request(r_type='post', pref='viewed', data=data)
         return resp
 
     def _raw2struct(self):
@@ -311,7 +328,7 @@ class TorrServer(TorrentsSource):
         return res.status_code
 
     def get_torrent_stat(self, t_hash):
-        resp = self._server_request(r_type='get', pref=f'stream/fname?link={t_hash}&stat')
+        resp = self.server_request(r_type='get', pref=f'stream/fname?link={t_hash}&stat')
         return resp
 
     def delete_torrent_with_check(self, t_hash):
@@ -407,7 +424,7 @@ class LitrCC(TorrentsSource):
         self._raw2struct()
 
     def _get_torrents_list(self):
-        resp = self._server_request(r_type='get')
+        resp = self.server_request(r_type='get')
         return resp.json()
 
     def check_rutor_url(self):
@@ -523,7 +540,7 @@ class TorrentBy(RuTor):
     def get_torrent_page(self, torrent_id):
         self._server_url = f'{self._url_pattern}{torrent_id}'
         logging.debug(f'URL: {self._server_url}')
-        resp = self._server_request(r_type='get', verify=False)
+        resp = self.server_request(r_type='get', verify=False)
         return resp
 
     @staticmethod
@@ -553,14 +570,14 @@ class Kinozal(TorrentsSource):
         data = {'username': self._login, 'password': self._password, 'returnto': ''}
         logging.debug(f'login: {self._login}, password: {self._password}')
         # ToDo: catch errors on connect, like as timeout
-        self._server_request(r_type='post', url=self._login_url, data=data)
+        self.server_request(r_type='post', url=self._login_url, data=data)
         # self._session.post(url=self._login_url, data=data)
 
     def get_torrent_page(self, torrent_id):
         if self._session:
             self._server_url = f'{self._url_pattern}{torrent_id}'
             logging.debug(f'URL: {self._server_url}')
-            resp = self._server_request(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
+            resp = self.server_request(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
             # resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
             pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
             search_res = pattern.search(resp.text)
@@ -568,7 +585,7 @@ class Kinozal(TorrentsSource):
                 self._t_hash = search_res.group(1).lower()
             else:
                 self._t_hash = None
-            resp = self._server_request(url=self._server_url)
+            resp = self.server_request(url=self._server_url)
             # resp = self._session.get(url=self._server_url)
         else:
             resp = None
@@ -647,7 +664,7 @@ class Updater(TorrentsSource):
         self._server_url = 'https://api.github.com'
 
     def _get_latest_releases(self):
-        resp = self._server_request(r_type='get', pref='repos/Mantikor/TorrserverSeriesUpdater/releases/latest')
+        resp = self.server_request(r_type='get', pref='repos/Mantikor/TorrserverSeriesUpdater/releases/latest')
         if resp.status_code == 200:
             return resp.json()
         else:
@@ -697,6 +714,24 @@ class Updater(TorrentsSource):
             self.check_updates()
 
 
+class AniDub(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._url_pattern = ''
+
+    @staticmethod
+    def get_magnet(text):
+        pass
+
+    @staticmethod
+    def get_title(text):
+        pass
+
+    @staticmethod
+    def get_poster(text):
+        pass
+
+
 class ArgsParser:
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
@@ -724,6 +759,8 @@ class ArgsParser:
                                  help='check updates and new releases on github page')
         self.parser.add_argument('--proxy', action='store', dest='proxy', type=str, default='',
                                  help='proxy server string in format: proxy-type://ip-address:port')
+        self.parser.add_argument('--anidub', action='store_true', dest='anidub', default=False,
+                                 help='update torrents from anidub.com')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -793,7 +830,7 @@ def main():
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
 
     if ts.args.all:
-        ts.parser.set_defaults(rutor=True, nnmclub=True, torrentby=True, kinozal=True, rutracker=True)
+        ts.parser.set_defaults(rutor=True, nnmclub=True, torrentby=True, kinozal=True, rutracker=True, anidub=True)
 
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)
@@ -860,6 +897,9 @@ def main():
 
     if ts.args.rutracker:
         update_tracker_torrents(tracker=RUTRACKER, tracker_class=Rutracker(proxy=ts.args.proxy), torrserver=torr_server)
+
+    if ts.args.anidub:
+        update_tracker_torrents(tracker=ANIDUB, tracker_class=AniDub(proxy=ts.args.proxy), torrserver=torr_server)
 
 
 if __name__ == '__main__':

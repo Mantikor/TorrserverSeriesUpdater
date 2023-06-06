@@ -32,7 +32,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.0'
+__version__ = '0.10.1'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -45,7 +45,7 @@ NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '='}
 TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
-ANIDUB = {'anidub_id': ['anidub.com'], 'sep': '='}
+ANIDUB = {'anidub_id': ['anidub.com'], 'sep': ''}
 ANILIBRIA = {}
 
 TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER]
@@ -180,15 +180,18 @@ class TorrentsSource(object):
         if patterns is None:
             patterns = list
         if url and any(domain in url for domain in patterns):
-            try:
-                clean_url = url.split('&')[0]
-                scratches = clean_url.split(sep)
-                for part in scratches:
-                    if part.isdecimal():
-                        return part
-            except Exception as e:
-                logging.error(e)
-                return None
+            if sep:
+                try:
+                    clean_url = url.split('&')[0]
+                    scratches = clean_url.split(sep)
+                    for part in scratches:
+                        if part.isdecimal():
+                            return part
+                except Exception as e:
+                    logging.error(e)
+                    return None
+            else:
+                return url
         return None
 
 

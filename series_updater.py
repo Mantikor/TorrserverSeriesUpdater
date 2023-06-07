@@ -32,11 +32,11 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.1'
+__version__ = '0.10.4'
 
 
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s [%(funcName)s] - %(message)s',
+                    format='%(asctime)s %(levelname)s - %(message)s',
                     handlers=[logging.StreamHandler()]
                     )
 
@@ -48,19 +48,7 @@ RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
 ANIDUB = {'anidub_id': ['anidub.com'], 'sep': ''}
 ANILIBRIA = {}
 
-TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER]
-
-
-def get_hash_from_torrent_file(file_content):
-    try:
-        metadata = bencodepy.decode(file_content)
-        subj = metadata[b'info']
-        hash_contents = bencodepy.encode(subj)
-        hex_digest = hashlib.sha1(hash_contents).hexdigest()
-    except Exception as e:
-        logging.error(e)
-        hex_digest = None
-    return hex_digest
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB]
 
 
 class TorrentsSource(object):
@@ -157,6 +145,9 @@ class TorrentsSource(object):
             # sys.exit(1)
             resp = self.unknown_response
         return resp
+
+    def server_request(self, *args, **kwargs):
+        return self._server_request(*args, **kwargs)
 
     def get_torrent_page(self, torrent_id):
         resp = None
@@ -717,6 +708,38 @@ class Updater(TorrentsSource):
             self.check_updates()
 
 
+class TorrentFile(object):
+    def __init__(self, file_content):
+        self.content = file_content
+        try:
+            self.metadata = bencodepy.decode(self.content)
+        except Exception as e:
+            logging.error(e)
+            self.metadata = dict()
+
+    def get_hash(self):
+        try:
+            subj = self.metadata[b'info']
+            hash_contents = bencodepy.encode(subj)
+            hex_digest = hashlib.sha1(hash_contents).hexdigest()
+        except Exception as e:
+            logging.error(e)
+            hex_digest = None
+        return hex_digest
+
+    def get_name(self):
+        try:
+            b_name = self.metadata[b'info'][b'name']
+            name = b_name.decode('utf-8')
+        except Exception as e:
+            logging.error(e)
+            name = None
+        return name
+
+    def get_files_list(self):
+        pass
+
+
 class AniDub(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -729,21 +752,54 @@ class AniDub(TorrentsSource):
         return resp
 
     @staticmethod
-    def get_magnet(text):
+    def get_magnet(text, torrent_name):
         # get .torrent file link
+        file_links = html.fromstring(text).xpath('//div[@class="torrent"]//div[@class="torrent_h"]/a/@href')
+        if file_links:
+            file_links = set(file_links)
+            for f_link in file_links:
+                temp_file = TorrentsSource()
+                logging.debug(f'Link: {f_link}')
+                link_ok = 'https://tr.anidub.com' + f_link
+                logging.debug(f'Will download .torrent file from link: {link_ok}')
+                torrent_file = temp_file.server_request(url=link_ok)
+                if torrent_file:
+                    tf = TorrentFile(file_content=torrent_file.content)
+                    file_torrent_name = tf.get_name()
+                    logging.debug(f'Torrent name from downloaded file: {file_torrent_name}')
+                    if file_torrent_name == torrent_name:
+                        file_hash = tf.get_hash()
+                        logging.debug(f'Torrent hash from downloaded file: {file_hash}')
+                        return file_hash
+        return None
         # download the .torrent-file
+        # get name from .torrent-file
+        # metadata = bencodepy.decode(file)
+        # subj = metadata[b'info'][b'name']
+        # get TorrServer object
+        # get t_stat = ts_object.get_torrent_stat(t_gash=torrent_hash)
+        # get torrent name
+        # t_stat.get('name')
+        # check if name == name from .torrent-file than
         # get_hash_from_torrent_file(.torrent-file content)
         # return hash
-        pass
+        # else process next file
 
     @staticmethod
     def get_title(text):
-        pass
+        title = html.fromstring(text).xpath('//h1//text()')
+        if title:
+            return title[0]
+        else:
+            return None
 
     @staticmethod
     def get_poster(text):
-        image_src = html.fromstring(text).xpath('//div[contains(@class, "poster_bg")]//img/@src')
-        return image_src
+        img_src = html.fromstring(text).xpath('//div[contains(@class, "poster_bg")]//img/@src')
+        if img_src:
+            return img_src[0]
+        else:
+            return None
 
 
 class ArgsParser:
@@ -795,7 +851,14 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
         resp = cls.get_torrent_page(torrent_id=torrent_id)
         if resp and resp.status_code == 200:
             t_title = cls.get_title(text=resp.text)
-            t_hash = cls.get_magnet(text=resp.text)
+            if isinstance(cls, AniDub):
+                anidub_torrent = torrents_list[0]
+                anibub_t_hash = anidub_torrent.get('t_hash')
+                anidub_t_info = torrserver.get_torrent_stat(t_hash=anibub_t_hash)
+                anidub_t_name = anidub_t_info.json().get('name')
+                t_hash = cls.get_magnet(text=resp.text, torrent_name=anidub_t_name)
+            else:
+                t_hash = cls.get_magnet(text=resp.text)
             t_poster = cls.get_poster(text=resp.text)
             # logging.info(f'Checking: {t_title}')
             logging.debug(f'Poster: {t_poster}')
@@ -833,6 +896,8 @@ def main():
 
     if ts.args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().handlers[0].setFormatter(
+            logging.Formatter('%(asctime)s %(levelname)s [%(funcName)s] - %(message)s'))
 
     version = Updater(schedule=2)
     if ts.args.version:

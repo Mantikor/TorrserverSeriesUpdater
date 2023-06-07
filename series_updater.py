@@ -751,18 +751,23 @@ class AniDub(TorrentsSource):
         resp = self._server_request(r_type='get')
         return resp
 
-    @staticmethod
-    def get_magnet(text, torrent_name):
-        # get .torrent file link
-        file_links = html.fromstring(text).xpath('//div[@class="torrent"]//div[@class="torrent_h"]/a/@href')
+    def get_magnet(self, text, torrent_name):
+        """Get magnet from .torrent files links of html page
+        Get all links to .torrent files on page (from text), download .torrent file,
+        get metadata from file, from metadata get torrent name (metadata[b'info'][b'name']),
+        if name == torrent_name get hash from .torrent file
+
+        :return: file_hash:
+        """
+        page = html.fromstring(text)
+        page.make_links_absolute(self._server_url)
+        file_links = page.xpath('//div[@class="torrent"]//div[@class="torrent_h"]/a/@href')
         if file_links:
             file_links = set(file_links)
             for f_link in file_links:
                 temp_file = TorrentsSource()
                 logging.debug(f'Link: {f_link}')
-                link_ok = 'https://tr.anidub.com' + f_link
-                logging.debug(f'Will download .torrent file from link: {link_ok}')
-                torrent_file = temp_file.server_request(url=link_ok)
+                torrent_file = temp_file.server_request(url=f_link)
                 if torrent_file:
                     tf = TorrentFile(file_content=torrent_file.content)
                     file_torrent_name = tf.get_name()
@@ -772,18 +777,6 @@ class AniDub(TorrentsSource):
                         logging.debug(f'Torrent hash from downloaded file: {file_hash}')
                         return file_hash
         return None
-        # download the .torrent-file
-        # get name from .torrent-file
-        # metadata = bencodepy.decode(file)
-        # subj = metadata[b'info'][b'name']
-        # get TorrServer object
-        # get t_stat = ts_object.get_torrent_stat(t_gash=torrent_hash)
-        # get torrent name
-        # t_stat.get('name')
-        # check if name == name from .torrent-file than
-        # get_hash_from_torrent_file(.torrent-file content)
-        # return hash
-        # else process next file
 
     @staticmethod
     def get_title(text):

@@ -32,7 +32,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.4'
+__version__ = '0.10.4test'
 
 
 logging.basicConfig(level=logging.INFO,

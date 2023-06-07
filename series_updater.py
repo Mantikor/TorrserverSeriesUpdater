@@ -32,7 +32,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.4'
+__version__ = '0.10.5'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -46,9 +46,9 @@ TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
 ANIDUB = {'anidub_id': ['anidub.com'], 'sep': ''}
-ANILIBRIA = {}
+ANILIBRIA = {'anilibria_id': ['anilibria.tv'], 'sep': ''}
 
-TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB]
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB, ANILIBRIA]
 
 
 class TorrentsSource(object):
@@ -744,6 +744,7 @@ class AniDub(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._url_pattern = ''
+        self._file_links_xpath = '//div[@class="torrent"]//div[@class="torrent_h"]/a/@href'
 
     def get_torrent_page(self, torrent_id):
         self._server_url = torrent_id
@@ -761,7 +762,7 @@ class AniDub(TorrentsSource):
         """
         page = html.fromstring(text)
         page.make_links_absolute(self._server_url)
-        file_links = page.xpath('//div[@class="torrent"]//div[@class="torrent_h"]/a/@href')
+        file_links = page.xpath(self._file_links_xpath)
         if file_links:
             file_links = set(file_links)
             for f_link in file_links:
@@ -771,7 +772,8 @@ class AniDub(TorrentsSource):
                 if torrent_file:
                     tf = TorrentFile(file_content=torrent_file.content)
                     file_torrent_name = tf.get_name()
-                    logging.debug(f'Torrent name from downloaded file: {file_torrent_name}')
+                    logging.debug(f'File  torrent name: {file_torrent_name}')
+                    logging.debug(f'Given torrent name: {file_torrent_name}')
                     if file_torrent_name == torrent_name:
                         file_hash = tf.get_hash()
                         logging.debug(f'Torrent hash from downloaded file: {file_hash}')
@@ -789,6 +791,29 @@ class AniDub(TorrentsSource):
     @staticmethod
     def get_poster(text):
         img_src = html.fromstring(text).xpath('//div[contains(@class, "poster_bg")]//img/@src')
+        if img_src:
+            return img_src[0]
+        else:
+            return None
+
+
+class AniLibria(AniDub):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._file_links_xpath = '//div[@class="download-torrent"]//a[@class="torrent-download-link"]/@href'
+
+    @staticmethod
+    def get_title(text):
+        title = html.fromstring(text).xpath('//head/title/text()')
+        if title:
+            return title[0]
+        else:
+            return None
+
+    def get_poster(self, text):
+        page = html.fromstring(text)
+        page.make_links_absolute(self._server_url)
+        img_src = page.xpath('//img[@class="detail_torrent_pic"]/@src')
         if img_src:
             return img_src[0]
         else:
@@ -824,6 +849,8 @@ class ArgsParser:
                                  help='proxy server string in format: proxy-type://ip-address:port')
         self.parser.add_argument('--anidub', action='store_true', dest='anidub', default=False,
                                  help='update torrents from anidub.com')
+        self.parser.add_argument('--anilibria', action='store_true', dest='anilibria', default=False,
+                                 help='update torrents from anilibria.tv')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -972,6 +999,9 @@ def main():
 
     if ts.args.anidub:
         update_tracker_torrents(tracker=ANIDUB, tracker_class=AniDub(proxy=ts.args.proxy), torrserver=torr_server)
+
+    if ts.args.anilibria:
+        update_tracker_torrents(tracker=ANILIBRIA, tracker_class=AniLibria(proxy=ts.args.proxy), torrserver=torr_server)
 
 
 if __name__ == '__main__':

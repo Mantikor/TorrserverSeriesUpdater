@@ -873,8 +873,8 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
             t_title = cls.get_title(text=resp.text)
             if isinstance(cls, AniDub):
                 anidub_torrent = torrents_list[0]
-                anibub_t_hash = anidub_torrent.get('t_hash')
-                anidub_t_info = torrserver.get_torrent_stat(t_hash=anibub_t_hash)
+                anidub_t_hash = anidub_torrent.get('t_hash')
+                anidub_t_info = torrserver.get_torrent_stat(t_hash=anidub_t_hash)
                 anidub_t_name = anidub_t_info.json().get('name')
                 t_hash = cls.get_magnet(text=resp.text, torrent_name=anidub_t_name)
             else:

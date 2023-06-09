@@ -747,6 +747,15 @@ class TorrentFile(object):
     def get_files_list(self):
         pass
 
+    def get_announce(self):
+        try:
+            b_announce = self.metadata[b'announce']
+            announce = b_announce.decode('utf-8')
+        except Exception as e:
+            logging.error(e)
+            announce = None
+        return announce
+
 
 class AniDub(TorrentsSource):
     def __init__(self, *args, **kwargs):
@@ -785,6 +794,7 @@ class AniDub(TorrentsSource):
                     if file_torrent_name == torrent_name:
                         file_hash = tf.get_hash()
                         logging.debug(f'Torrent hash from downloaded file: {file_hash}')
+
                         return file_hash
         return None
 

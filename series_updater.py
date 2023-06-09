@@ -32,7 +32,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.5'
+__version__ = '0.10.6'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -872,11 +872,14 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
         if resp and resp.status_code == 200:
             t_title = cls.get_title(text=resp.text)
             if isinstance(cls, AniDub):
-                anidub_torrent = torrents_list[0]
-                anidub_t_hash = anidub_torrent.get('t_hash')
-                anidub_t_info = torrserver.get_torrent_stat(t_hash=anidub_t_hash)
-                anidub_t_name = anidub_t_info.json().get('name')
-                t_hash = cls.get_magnet(text=resp.text, torrent_name=anidub_t_name)
+                fl_torrent = torrents_list[0]
+                fl_t_hash = fl_torrent.get('t_hash')
+                fl_t_info = torrserver.get_torrent_stat(t_hash=fl_t_hash)
+                if fl_t_info.status_code == 200:
+                    fl_t_name = fl_t_info.json().get('name')
+                    t_hash = cls.get_magnet(text=resp.text, torrent_name=fl_t_name)
+                else:
+                    t_hash = None
             else:
                 t_hash = cls.get_magnet(text=resp.text)
             t_poster = cls.get_poster(text=resp.text)

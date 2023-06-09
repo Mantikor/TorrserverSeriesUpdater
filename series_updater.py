@@ -32,7 +32,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.6'
+__version__ = '0.10.7'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -156,6 +156,16 @@ class TorrentsSource(object):
             logging.debug(f'URL: {self._server_url}')
             resp = self._server_request(r_type='get')
         return resp
+
+    @staticmethod
+    def get_hash_from_magnet(magnet_link):
+        if magnet_link:
+            search_pattern = re.compile(r'magnet:\?xt=urn:btih:([a-f0-9]{40})')
+            search_res = search_pattern.search(magnet_link)
+            if search_res:
+                return search_res.group(1)
+            else:
+                return None
 
     def get_tracker_torrents(self, tracker_id=''):
         torrents = dict()
@@ -382,13 +392,11 @@ class RuTor(TorrentsSource):
 
     @staticmethod
     def get_magnet(text):
-        pattern = re.compile(r'<div id=\"download\"><a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
-        if search_res:
-            return search_res.group(1)
-        else:
-            return None
+        links = html.fromstring(text).xpath('//div[@id="download"]/a/@href')
+        for link in links:
+            if 'magnet' in link:
+                return link
+        return None
 
     @staticmethod
     def get_title(text):

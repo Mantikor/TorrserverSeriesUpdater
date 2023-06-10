@@ -4,7 +4,7 @@ idna==3.4
 multidict==6.0.4
 PyYAML==6.0
 requests==2.31.0
-urllib3==2.0.2
+urllib3==2.0.3
 yarl==1.9.2
 lxml==4.9.2
 PySocks==1.7.1

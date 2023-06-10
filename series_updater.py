@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.7'
+__version__ = '0.10.8'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -655,38 +655,42 @@ class TorrentFile(object):
         try:
             self.metadata = bencodepy.decode(self.content)
         except Exception as e:
-            logging.error(e)
+            if logging.getLogger().handlers[0].level == logging.DEBUG:
+                logging.error(e)
             self.metadata = dict()
 
     def get_hash(self):
+        hex_digest = None
         try:
-            subj = self.metadata[b'info']
-            hash_contents = bencodepy.encode(subj)
-            hex_digest = hashlib.sha1(hash_contents).hexdigest()
+            subj = self.metadata.get('b"info"')
+            if subj:
+                hash_contents = bencodepy.encode(subj)
+                hex_digest = hashlib.sha1(hash_contents).hexdigest()
         except Exception as e:
             logging.error(e)
-            hex_digest = None
         return hex_digest
 
     def get_name(self):
+        name = None
         try:
-            b_name = self.metadata[b'info'][b'name']
-            name = b_name.decode('utf-8')
+            b_name = self.metadata.get('b"info"', dict()).get('b"name"')
+            if b_name:
+                name = b_name.decode('utf-8')
         except Exception as e:
             logging.error(e)
-            name = None
         return name
 
     def get_files_list(self):
         pass
 
     def get_announce(self):
+        announce = None
         try:
-            b_announce = self.metadata[b'announce']
-            announce = b_announce.decode('utf-8')
+            b_announce = self.metadata.get('b"announce"')
+            if b_announce:
+                announce = b_announce.decode('utf-8')
         except Exception as e:
             logging.error(e)
-            announce = None
         return announce
 
 
@@ -818,6 +822,14 @@ class Kinozal(AniDub):
         else:
             resp = None
         return resp
+
+    def get_magnet_from_file(self, text):
+        magnet_from_file = super().get_magnet_from_file(text=text)
+        if not magnet_from_file:
+            torrent_id = self._server_url.split(self._url_pattern)[-1]
+            t_hash = self.get_hash_from_server(torrent_id=torrent_id)
+            magnet_from_file = f'magnet:?xt=urn:btih:{t_hash}'
+        return magnet_from_file
 
     def get_hash_from_server(self, torrent_id):
         if self._session:

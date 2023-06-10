@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.8'
+__version__ = '0.10.9'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -662,7 +662,7 @@ class TorrentFile(object):
     def get_hash(self):
         hex_digest = None
         try:
-            subj = self.metadata.get('b"info"')
+            subj = self.metadata.get(b'info')
             if subj:
                 hash_contents = bencodepy.encode(subj)
                 hex_digest = hashlib.sha1(hash_contents).hexdigest()
@@ -673,7 +673,7 @@ class TorrentFile(object):
     def get_name(self):
         name = None
         try:
-            b_name = self.metadata.get('b"info"', dict()).get('b"name"')
+            b_name = self.metadata.get(b'info', dict()).get(b'name')
             if b_name:
                 name = b_name.decode('utf-8')
         except Exception as e:
@@ -686,7 +686,7 @@ class TorrentFile(object):
     def get_announce(self):
         announce = None
         try:
-            b_announce = self.metadata.get('b"announce"')
+            b_announce = self.metadata.get(b'announce')
             if b_announce:
                 announce = b_announce.decode('utf-8')
         except Exception as e:

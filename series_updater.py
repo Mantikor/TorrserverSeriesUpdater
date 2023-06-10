@@ -8,8 +8,8 @@ init release 2023-02-10
 The program for update torrents with new episodes for series
 
 [TorrServer](https://github.com/YouROK/TorrServer)
-[TorrServer Adder for Chrome](https://chrome.google.com/webstore/detail/torrserver-adder/ihphookhabmjbgccflngglmidjloeefg)
-[TorrServer Adder for Firefox](https://addons.mozilla.org/ru/firefox/addon/torrserver-adder/)
+[TorrServer Adder Chrome](https://chrome.google.com/webstore/detail/torrserver-adder/ihphookhabmjbgccflngglmidjloeefg)
+[TorrServer Adder Firefox](https://addons.mozilla.org/ru/firefox/addon/torrserver-adder/)
 [TorrServe client on 4PDA](https://4pda.to/forum/index.php?showtopic=889960)
 
 """
@@ -25,6 +25,7 @@ import yaml
 import re
 import bencodepy
 import hashlib
+import urllib
 from yarl import URL
 from logging.handlers import RotatingFileHandler
 from json import JSONDecodeError
@@ -45,6 +46,7 @@ NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '='}
 TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
+# if sep = '' than we check torrent with page link instead hash
 ANIDUB = {'anidub_id': ['anidub.com'], 'sep': ''}
 ANILIBRIA = {'anilibria_id': ['anilibria.tv'], 'sep': ''}
 
@@ -122,22 +124,30 @@ class TorrentsSource(object):
         return dict()
 
     def _server_request(self, r_type: str = 'get', url=None, pref: str = '', data: dict = None, timeout: int = 10,
-                        verify: bool = True):
+                        headers: dict = None, is_json: bool = False, verify: bool = True):
         if data is None:
             data = dict()
         if pref:
             pref = f'/{pref}'
         if url is None:
             url = f'{self._server_url}{pref}'
+        if headers:
+            self._session.headers.update(headers)
         logging.debug(f'Proxy settings: {self._session.proxies}')
         try:
             logging.debug(url)
             if r_type == 'get':
-                resp = self._session.get(url=url, timeout=timeout, verify=verify)
+                resp = self._session.get(url=url, headers=headers, timeout=timeout, verify=verify)
             elif r_type == 'post':
-                resp = self._session.post(url=url, json=data, timeout=timeout, verify=verify)
+                if is_json:
+                    resp = self._session.post(url=url, headers=headers, json=data, timeout=timeout, verify=verify)
+                else:
+                    resp = self._session.post(url=url, headers=headers, data=data, timeout=timeout, verify=verify)
             else:
-                resp = self._session.head(url=url, json=data, timeout=timeout, verify=verify)
+                if is_json:
+                    resp = self._session.head(url=url, headers=headers, json=data, timeout=timeout, verify=verify)
+                else:
+                    resp = self._session.head(url=url, headers=headers, data=data, timeout=timeout, verify=verify)
         except Exception as e:
             logging.error(e)
             logging.error(f'Connection problems with {url}')
@@ -158,6 +168,15 @@ class TorrentsSource(object):
         return resp
 
     @staticmethod
+    def get_magnet(text, xpath='//a/@href'):
+        links = html.fromstring(text).xpath(xpath)
+        for link in links:
+            if 'magnet' in link:
+                logging.debug(f'{link}')
+                return str(link).lower()
+        return None
+
+    @staticmethod
     def get_hash_from_magnet(magnet_link):
         if magnet_link:
             search_pattern = re.compile(r'magnet:\?xt=urn:btih:([a-f0-9]{40})')
@@ -166,6 +185,8 @@ class TorrentsSource(object):
                 return search_res.group(1)
             else:
                 return None
+        else:
+            return None
 
     def get_tracker_torrents(self, tracker_id=''):
         torrents = dict()
@@ -226,7 +247,7 @@ class TorrServer(TorrentsSource):
         return self._secrets
 
     def _get_torrents_list(self):
-        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'list'})
+        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'list'}, is_json=True)
         if resp.status_code == 200:
             return resp.json()
         else:
@@ -234,7 +255,7 @@ class TorrServer(TorrentsSource):
             return dict()
 
     def get_torrent_info(self, t_hash):
-        resp = self._server_request(r_type='post', pref='viewed', data={'action': 'list', 'hash': t_hash})
+        resp = self._server_request(r_type='post', pref='viewed', data={'action': 'list', 'hash': t_hash}, is_json=True)
         if resp.status_code == 200:
             return resp.json()
         else:
@@ -242,21 +263,23 @@ class TorrServer(TorrentsSource):
             return dict()
 
     def remove_torrent(self, t_hash):
-        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'rem', 'hash': t_hash})
+        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'rem', 'hash': t_hash},
+                                    is_json=True)
         return resp
 
     def add_torrent(self, torrent):
         data = {'action': 'add'} | torrent
-        resp = self._server_request(r_type='post', pref='torrents', data=data)
+        resp = self._server_request(r_type='post', pref='torrents', data=data, is_json=True)
         return resp
 
     def get_torrent(self, t_hash):
-        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'get', 'hash': t_hash})
+        resp = self._server_request(r_type='post', pref='torrents', data={'action': 'get', 'hash': t_hash},
+                                    is_json=True)
         return resp
 
     def set_viewed(self, viewed):
         data = {'action': 'set'} | viewed
-        resp = self._server_request(r_type='post', pref='viewed', data=data)
+        resp = self._server_request(r_type='post', pref='viewed', data=data, is_json=True)
         return resp
 
     def _raw2struct(self):
@@ -391,18 +414,14 @@ class RuTor(TorrentsSource):
         self._url_pattern = 'http://rutor.info/torrent/'
 
     @staticmethod
-    def get_magnet(text):
-        links = html.fromstring(text).xpath('//div[@id="download"]/a/@href')
-        for link in links:
-            if 'magnet' in link:
-                return link
-        return None
+    def get_magnet(text, xpath='//div[@id="download"]/a/@href'):
+        return TorrentsSource.get_magnet(text=text, xpath=xpath)
 
     @staticmethod
     def get_title(text):
         pattern = re.compile(r'<h1>(.*?)</h1>')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
+        fixed_html = text.replace('\n', '')
+        search_res = pattern.search(fixed_html)
         if search_res:
             return search_res.group(1)
         else:
@@ -410,8 +429,8 @@ class RuTor(TorrentsSource):
 
     @staticmethod
     def get_poster(text):
-        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-        match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', html)
+        fixed_html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<br /><img src=[\'"]?([^\'" >]+)', fixed_html)
         if match:
             return match.group(1)
         else:
@@ -504,20 +523,14 @@ class NnmClub(TorrentsSource):
         self._url_pattern = 'https://nnmclub.to/forum/viewtopic.php?t='
 
     @staticmethod
-    def get_magnet(text):
-        pattern = re.compile(r'<a rel=\"nofollow\" href=\"magnet:\?xt=urn:btih:([a-fA-F0-9]{40})')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
-        if search_res:
-            return search_res.group(1).lower()
-        else:
-            return None
+    def get_magnet(text, xpath='//td/a/@href'):
+        return TorrentsSource.get_magnet(text=text, xpath=xpath)
 
     @staticmethod
     def get_title(text):
         pattern = re.compile(r'<a class=\"maintitle\" href="viewtopic.php\?t=([0-9]*)\">(.*?)</a>')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
+        fixed_html = text.replace('\n', '')
+        search_res = pattern.search(fixed_html)
         if search_res:
             return search_res.group(2)
         else:
@@ -525,8 +538,8 @@ class NnmClub(TorrentsSource):
 
     @staticmethod
     def get_poster(text):
-        html = text.replace('\n', '').replace('\r', '').replace('\t', '')
-        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', html)
+        fixed_html = text.replace('\n', '').replace('\r', '').replace('\t', '')
+        match = re.search(r'<meta property=\"og:image" content=[\'"]?([^\'" >]+)', fixed_html)
         if match:
             return match.group(1)
         else:
@@ -546,80 +559,8 @@ class TorrentBy(RuTor):
         return resp
 
     @staticmethod
-    def get_magnet(text):
-        pattern = re.compile(r'<a href=\"magnet:\?xt=urn:btih:([a-f0-9]{40})')
-        html = text.replace('\n', '')
-        search_res = pattern.search(html)
-        if search_res:
-            return search_res.group(1)
-        else:
-            return None
-
-
-class Kinozal(TorrentsSource):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._t_hash = None
-        self._url_pattern = 'https://kinozal.tv/details.php?id='
-        self._login_url = 'https://kinozal.tv/takelogin.php'
-        self._login, self._password = list(kwargs.get('secrets', dict()).get('kinozal_id', {None: None}).items())[0]
-        if self._login and self._password:
-            self._get_auth()
-        else:
-            logging.warning(f'Auth problem: login: {self._login}, password: {self._password}, url: {self._login_url}')
-
-    def _get_auth(self):
-        data = {'username': self._login, 'password': self._password, 'returnto': ''}
-        logging.debug(f'login: {self._login}, password: {self._password}')
-        # ToDo: catch errors on connect, like as timeout
-        self._server_request(r_type='post', url=self._login_url, data=data)
-        # self._session.post(url=self._login_url, data=data)
-
-    def get_torrent_page(self, torrent_id):
-        if self._session:
-            self._server_url = f'{self._url_pattern}{torrent_id}'
-            logging.debug(f'URL: {self._server_url}')
-            resp = self._server_request(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
-            # resp = self._session.get(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
-            pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
-            search_res = pattern.search(resp.text)
-            if search_res:
-                self._t_hash = search_res.group(1).lower()
-            else:
-                self._t_hash = None
-            resp = self._server_request(url=self._server_url)
-            # resp = self._session.get(url=self._server_url)
-        else:
-            resp = None
-        return resp
-
-    def get_magnet(self, text):
-        return self._t_hash
-
-    @staticmethod
-    def get_title(text):
-        meta_og_title = html.fromstring(text).xpath('//meta[@property="og:title"]/@content')
-        if meta_og_title:
-            return meta_og_title[0]
-        else:
-            return None
-
-    @staticmethod
-    def get_poster(text):
-        logo_href = html.fromstring(text).xpath('//div[@class="logo_new"]/a/@href')
-        if logo_href:
-            domain = logo_href[0]
-        else:
-            domain = 'https://kinozal.tv'
-        meta_og_image = html.fromstring(text).xpath('//meta[@property="og:image"]/@content')
-        if meta_og_image:
-            img_link_path = meta_og_image[0]
-            if 'http' in img_link_path:
-                return img_link_path
-            else:
-                return domain + img_link_path
-        else:
-            return None
+    def get_magnet(text, xpath=''):
+        return NnmClub.get_magnet(text=text)
 
 
 class Rutracker(TorrentsSource):
@@ -628,23 +569,15 @@ class Rutracker(TorrentsSource):
         self._url_pattern = 'https://rutracker.org/forum/viewtopic.php?t='
 
     @staticmethod
-    def get_magnet(text):
-        magnet_link = html.fromstring(text).xpath('//a[@class="magnet-link"]/@href')
-        if magnet_link:
-            magnet_link_href = magnet_link[0]
-            magnet_pattern = re.compile(r'magnet:\?xt=urn:btih:([a-fA-F0-9]{40})')
-            search_res = magnet_pattern.search(magnet_link_href)
-            if search_res:
-                return search_res.group(1).lower()
-        else:
-            return None
+    def get_magnet(text, xpath='//table//a[@class="magnet-link"]/@href'):
+        return TorrentsSource.get_magnet(text=text, xpath=xpath)
 
     @staticmethod
     def get_title(text):
-        h1_maintitle = html.fromstring(text).xpath('//h1[@class="maintitle"]/a[@id="topic-title"]//text()')
-        if h1_maintitle:
-            h1_maintitle_text = ''.join(h1_maintitle)
-            return h1_maintitle_text
+        h1_main_title = html.fromstring(text).xpath('//h1[@class="maintitle"]/a[@id="topic-title"]//text()')
+        if h1_main_title:
+            h1_main_title_text = ''.join(h1_main_title)
+            return h1_main_title_text
         else:
             return None
 
@@ -761,6 +694,7 @@ class AniDub(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._url_pattern = ''
+        self.torrent_file_name = ''
         self._file_links_xpath = '//div[@class="torrent"]//div[@class="torrent_h"]/a/@href'
 
     def get_torrent_page(self, torrent_id):
@@ -769,7 +703,7 @@ class AniDub(TorrentsSource):
         resp = self._server_request(r_type='get')
         return resp
 
-    def get_magnet(self, text, torrent_name):
+    def get_magnet_from_file(self, text):
         """Get magnet from .torrent files links of html page
         Get all links to .torrent files on page (from text), download .torrent file,
         get metadata from file, from metadata get torrent name (metadata[b'info'][b'name']),
@@ -783,19 +717,21 @@ class AniDub(TorrentsSource):
         if file_links:
             file_links = set(file_links)
             for f_link in file_links:
-                temp_file = TorrentsSource()
                 logging.debug(f'Link: {f_link}')
-                torrent_file = temp_file.server_request(url=f_link)
+                torrent_file = self.server_request(url=f_link)
                 if torrent_file:
                     tf = TorrentFile(file_content=torrent_file.content)
                     file_torrent_name = tf.get_name()
                     logging.debug(f'File  torrent name: {file_torrent_name}')
                     logging.debug(f'Given torrent name: {file_torrent_name}')
-                    if file_torrent_name == torrent_name:
+                    if file_torrent_name == self.torrent_file_name:
                         file_hash = tf.get_hash()
                         logging.debug(f'Torrent hash from downloaded file: {file_hash}')
-
-                        return file_hash
+                        file_announce = tf.get_announce()
+                        logging.debug(f'Torrent announce server from downloaded file: {file_announce}')
+                        url_encoded_announce = urllib.parse.quote(file_announce, safe='')
+                        magnet_link = f'magnet:?xt=urn:btih:{file_hash}&tr={url_encoded_announce}'
+                        return magnet_link
         return None
 
     @staticmethod
@@ -834,6 +770,92 @@ class AniLibria(AniDub):
         img_src = page.xpath('//img[@class="detail_torrent_pic"]/@src')
         if img_src:
             return img_src[0]
+        else:
+            return None
+
+
+class Kinozal(AniDub):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._file_links_xpath = '//td[@class="nw"]/a/@href'
+        self._url_pattern = 'https://kinozal.tv/details.php?id='
+        self._login_url = 'https://kinozal.tv/takelogin.php'
+        self.logged_in = False
+        self._login, self._password = list(kwargs.get('secrets', dict()).get('kinozal_id', {None: None}).items())[0]
+        if self._login and self._password:
+            resp = self._get_auth()
+            self._check_auth(resp)
+        else:
+            logging.warning(f'Auth problem: login: {self._login}, password: {self._password}, url: {self._login_url}')
+
+    def _get_auth(self):
+        data = {'username': self._login, 'password': self._password, 'returnto': ''}
+        logging.debug(f'login: {self._login}, password: {self._password}')
+        return self._server_request(r_type='post', url=self._login_url, data=data, headers={})
+
+    def _check_auth(self, resp):
+        if resp and (resp.status_code == 200):
+            u_details = html.fromstring(resp.text).xpath('//div[@class="menu"]//ul[@class="men"]//a/@href')
+            for i in u_details:
+                if 'userdetails.php' in i:
+                    self.is_logged_in = True
+                    logging.info(f'OK, user: {self._login} is logged in')
+                    return
+        logging.warning(f'Problem, user: {self._login} not logged in')
+
+    # def is_logged_in(func):
+    #     def wrapper(self, *args, **kwargs):
+    #         if not self.logged_in:
+    #             logging.warning('Not logged in')
+    #         return func(self, *args, **kwargs)
+    #     return wrapper
+    #
+    # @is_logged_in
+    def get_torrent_page(self, torrent_id):
+        if self._session:
+            self._server_url = f'{self._url_pattern}{torrent_id}'
+            resp = self._server_request(url=self._server_url)
+        else:
+            resp = None
+        return resp
+
+    def get_hash_from_server(self, torrent_id):
+        if self._session:
+            self._server_url = f'{self._url_pattern}{torrent_id}'
+            logging.debug(f'URL: {self._server_url}')
+            resp = self._server_request(url=f'https://kinozal.tv/get_srv_details.php?id={torrent_id}&action=2')
+            pattern = re.compile(r': ([a-fA-F0-9]{40})</li>')
+            search_res = pattern.search(resp.text)
+            if search_res:
+                t_hash = search_res.group(1).lower()
+            else:
+                t_hash = None
+        else:
+            t_hash = None
+        return t_hash
+
+    @staticmethod
+    def get_title(text):
+        meta_og_title = html.fromstring(text).xpath('//meta[@property="og:title"]/@content')
+        if meta_og_title:
+            return meta_og_title[0]
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        logo_href = html.fromstring(text).xpath('//div[@class="logo_new"]/a/@href')
+        if logo_href:
+            domain = logo_href[0]
+        else:
+            domain = 'https://kinozal.tv'
+        meta_og_image = html.fromstring(text).xpath('//meta[@property="og:image"]/@content')
+        if meta_og_image:
+            img_link_path = meta_og_image[0]
+            if 'http' in img_link_path:
+                return img_link_path
+            else:
+                return domain + img_link_path
         else:
             return None
 
@@ -894,12 +916,16 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                 fl_t_hash = fl_torrent.get('t_hash')
                 fl_t_info = torrserver.get_torrent_stat(t_hash=fl_t_hash)
                 if fl_t_info.status_code == 200:
-                    fl_t_name = fl_t_info.json().get('name')
-                    t_hash = cls.get_magnet(text=resp.text, torrent_name=fl_t_name)
+                    t_file_name = fl_t_info.json().get('name')
+                    cls.torrent_file_name = t_file_name
+                    t_magnet = cls.get_magnet_from_file(text=resp.text)
+                    t_hash = cls.get_hash_from_magnet(magnet_link=t_magnet)
                 else:
+                    t_magnet = None
                     t_hash = None
             else:
-                t_hash = cls.get_magnet(text=resp.text)
+                t_magnet = cls.get_magnet(text=resp.text)
+                t_hash = cls.get_hash_from_magnet(magnet_link=t_magnet)
             t_poster = cls.get_poster(text=resp.text)
             # logging.info(f'Checking: {t_title}')
             logging.debug(f'Poster: {t_poster}')
@@ -918,7 +944,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                     for vi in viewed_indexes_list:
                         indexes.add(vi.get('file_index'))
 
-                updated_torrent = {'link': f'magnet:?xt=urn:btih:{t_hash}', 'title': t_title, 'poster': t_poster,
+                updated_torrent = {'link': t_magnet, 'title': t_title, 'poster': t_poster,
                                    'save_to_db': True, 'data': data, 'hash': t_hash}
                 torrserver.add_updated_torrent(updated_torrent=updated_torrent, viewed_episodes=indexes)
                 torrserver.cleanup_torrents(hashes=hashes)

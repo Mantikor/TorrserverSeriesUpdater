@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.9'
+__version__ = '0.10.10'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -698,11 +698,14 @@ class AniDub(TorrentsSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._url_pattern = ''
-        self.torrent_file_name = ''
+        self.name_from_torrent_file = ''
+        self.torrent_file_link = ''
         self._file_links_xpath = '//div[@class="torrent"]//div[@class="torrent_h"]/a/@href'
 
     def get_torrent_page(self, torrent_id):
         self._server_url = torrent_id
+        self.name_from_torrent_file = ''
+        self.torrent_file_link = ''
         logging.debug(f'URL: {self._server_url}')
         resp = self._server_request(r_type='get')
         return resp
@@ -728,7 +731,8 @@ class AniDub(TorrentsSource):
                     file_torrent_name = tf.get_name()
                     logging.debug(f'File  torrent name: {file_torrent_name}')
                     logging.debug(f'Given torrent name: {file_torrent_name}')
-                    if file_torrent_name == self.torrent_file_name:
+                    if file_torrent_name == self.name_from_torrent_file:
+                        self.torrent_file_link = f_link
                         file_hash = tf.get_hash()
                         logging.debug(f'Torrent hash from downloaded file: {file_hash}')
                         file_announce = tf.get_announce()
@@ -929,7 +933,7 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                 fl_t_info = torrserver.get_torrent_stat(t_hash=fl_t_hash)
                 if fl_t_info.status_code == 200:
                     t_file_name = fl_t_info.json().get('name')
-                    cls.torrent_file_name = t_file_name
+                    cls.name_from_torrent_file = t_file_name
                     t_magnet = cls.get_magnet_from_file(text=resp.text)
                     t_hash = cls.get_hash_from_magnet(magnet_link=t_magnet)
                 else:

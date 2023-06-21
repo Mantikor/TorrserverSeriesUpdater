@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.10.10'
+__version__ = '0.11.0'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -46,11 +46,12 @@ NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '='}
 TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
+NEWSTUDIO = {'newstudio_id': ['newstudio.tv'], 'sep': '='}
 # if sep = '' than we check torrent with page link instead hash
 ANIDUB = {'anidub_id': ['anidub.com'], 'sep': ''}
 ANILIBRIA = {'anilibria_id': ['anilibria.tv'], 'sep': ''}
 
-TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB, ANILIBRIA]
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB, ANILIBRIA, NEWSTUDIO]
 
 
 class TorrentsSource(object):
@@ -876,6 +877,38 @@ class Kinozal(AniDub):
             return None
 
 
+class NewStudio(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._url_pattern = 'http://newstudio.tv/viewtopic.php?t='
+
+    # some problems with encoding detection
+    def get_torrent_page(self, torrent_id):
+        resp = super().get_torrent_page(torrent_id=torrent_id)
+        resp.encoding = 'utf-8'
+        return resp
+
+    @staticmethod
+    def get_magnet(text, xpath='//div[@class="pagination-centered"]//a/@href'):
+        return TorrentsSource.get_magnet(text=text, xpath=xpath)
+
+    @staticmethod
+    def get_title(text):
+        main_title = html.fromstring(text).xpath('//span[@class="post-b"]/text()')
+        if main_title:
+            return main_title[0]
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        img_src = html.fromstring(text).xpath('//var[contains(@class, "postImg")]/@title')
+        if img_src:
+            return img_src[0]
+        else:
+            return None
+
+
 class ArgsParser:
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
@@ -907,6 +940,8 @@ class ArgsParser:
                                  help='update torrents from anidub.com')
         self.parser.add_argument('--anilibria', action='store_true', dest='anilibria', default=False,
                                  help='update torrents from anilibria.tv')
+        self.parser.add_argument('--newstudio', action='store_true', dest='newstudio', default=False,
+                                 help='update torrents from newstudio.tv')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -1065,6 +1100,9 @@ def main():
 
     if ts.args.anilibria:
         update_tracker_torrents(tracker=ANILIBRIA, tracker_class=AniLibria(proxy=ts.args.proxy), torrserver=torr_server)
+
+    if ts.args.newstudio:
+        update_tracker_torrents(tracker=NEWSTUDIO, tracker_class=NewStudio(proxy=ts.args.proxy), torrserver=torr_server)
 
 
 if __name__ == '__main__':

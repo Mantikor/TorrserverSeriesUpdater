@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.11.0'
+__version__ = '0.11.1'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -47,11 +47,12 @@ TORRENTBY = {'torrentby_id': ['torrent.by'], 'sep': '/'}
 KINOZAL = {'kinozal_id': ['kinozal.tv', 'kinozal.guru', 'kinozal.me'], 'sep': '='}
 RUTRACKER = {'rutracker_id': ['rutracker.org'], 'sep': '='}
 NEWSTUDIO = {'newstudio_id': ['newstudio.tv'], 'sep': '='}
+PIRATBIT = {'piratbit_id': ['piratbit.org', 'pb.wtf', '5050.piratbit.fun'], 'sep': '/'}
 # if sep = '' than we check torrent with page link instead hash
 ANIDUB = {'anidub_id': ['anidub.com'], 'sep': ''}
 ANILIBRIA = {'anilibria_id': ['anilibria.tv'], 'sep': ''}
 
-TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB, ANILIBRIA, NEWSTUDIO]
+TRACKERS = [RUTOR, NNMCLUB, TORRENTBY, KINOZAL, RUTRACKER, ANIDUB, ANILIBRIA, NEWSTUDIO, PIRATBIT]
 
 
 class TorrentsSource(object):
@@ -909,6 +910,32 @@ class NewStudio(TorrentsSource):
             return None
 
 
+class PiratBit(TorrentsSource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._url_pattern = 'https://piratbit.org/topic/'
+
+    @staticmethod
+    def get_magnet(text, xpath='//a[contains(@class, "btn-info mob")]/@href'):
+        return TorrentsSource.get_magnet(text=text, xpath=xpath)
+
+    @staticmethod
+    def get_title(text):
+        main_title = html.fromstring(text).xpath('//h2[@class="title_topic"]/a/@title')
+        if main_title:
+            return main_title[0]
+        else:
+            return None
+
+    @staticmethod
+    def get_poster(text):
+        meta_og_image = html.fromstring(text).xpath('//meta[@property="og:image"]/@content')
+        if meta_og_image:
+            return meta_og_image[0]
+        else:
+            return None
+
+
 class ArgsParser:
     def __init__(self, desc, def_settings_file=None):
         self.parser = argparse.ArgumentParser(description=desc, add_help=True)
@@ -942,6 +969,8 @@ class ArgsParser:
                                  help='update torrents from anilibria.tv')
         self.parser.add_argument('--newstudio', action='store_true', dest='newstudio', default=False,
                                  help='update torrents from newstudio.tv')
+        self.parser.add_argument('--piratbit', action='store_true', dest='piratbit', default=False,
+                                 help='update torrents from piratbit.org')
         self.parser.add_argument(
             '--cleanup', action='store_true', dest='cleanup', default=False,
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
@@ -1027,7 +1056,8 @@ def main():
     torr_server = TorrServer(**{k: v for k, v in vars(ts.parser.parse_args()).items()}, tracker_id='torrserver')
 
     if ts.args.all:
-        ts.parser.set_defaults(rutor=True, nnmclub=True, torrentby=True, kinozal=True, rutracker=True, anidub=True)
+        ts.parser.set_defaults(rutor=True, nnmclub=True, torrentby=True, kinozal=True, rutracker=True, anidub=True,
+                               anilibria=True, newstudio=True, piratbit=True)
 
     if ts.args.cleanup:
         torr_server.cleanup_torrents(perm=True)
@@ -1103,6 +1133,9 @@ def main():
 
     if ts.args.newstudio:
         update_tracker_torrents(tracker=NEWSTUDIO, tracker_class=NewStudio(proxy=ts.args.proxy), torrserver=torr_server)
+
+    if ts.args.piratbit:
+        update_tracker_torrents(tracker=PIRATBIT, tracker_class=PiratBit(proxy=ts.args.proxy), torrserver=torr_server)
 
 
 if __name__ == '__main__':

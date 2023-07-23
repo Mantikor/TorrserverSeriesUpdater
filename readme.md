@@ -59,7 +59,9 @@
 
 Запуск через скрипт работает так же как и для Windows: Python уже обычно есть в дистрибутиве, скрипт устанавливается так же как и для Windows.
 
-Для Docker, скачиваем образ: `sudo docker pull mantik0r/torrserver_series_updater:latest` а потом запускаем: `sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`
+### Docker
+
+Скачиваем образ: `sudo docker pull mantik0r/torrserver_series_updater:latest` а потом запускаем: `sudo docker run --rm mantik0r/torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`
 
 ## English
 
@@ -105,9 +107,8 @@ From version 0.2.2 you can download precompiled binary (executable) files for Li
 ### Docker container
 
 You need [Docker](https://docs.docker.com/engine/install/) preinstalled
-```
-sudo docker pull mantik0r/torrserver_series_updater:latest
-```
+
+Download image `sudo docker pull mantik0r/torrserver_series_updater:latest` and run it: `sudo docker run --rm mantik0r/torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT`
 
 ### Python script
 

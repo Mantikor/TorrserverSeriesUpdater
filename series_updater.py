@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.11.1'
+__version__ = '0.11.2'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -98,13 +98,15 @@ class TorrentsSource(object):
         return self._secrets
 
     @staticmethod
-    def load_secrets(filename='secrets'):
+    def load_secrets(filename='secrets', add_path=None):
         """Load secrets from json file
 
         :return: result: dictionary with login/password pair for each tracker with auth
         """
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
                         os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
+        if add_path:
+            search_paths.append(add_path)
         if getattr(sys, 'frozen', False):
             search_paths.append(os.path.dirname(sys.executable))
         logging.debug(f'Search paths: {search_paths}')

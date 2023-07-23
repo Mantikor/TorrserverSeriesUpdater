@@ -106,7 +106,7 @@ class TorrentsSource(object):
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
                         os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
         if add_path:
-            search_paths.append(add_path)
+            search_paths.insert(0, add_path)
         if getattr(sys, 'frozen', False):
             search_paths.append(os.path.dirname(sys.executable))
         logging.debug(f'Search paths: {search_paths}')
@@ -232,7 +232,7 @@ class TorrServer(TorrentsSource):
         self._server_url = URL(kwargs.get('ts_url'))
         self._server_url: URL = URL.build(scheme=self._server_url.scheme, host=self._server_url.host,
                                           port=kwargs.get('ts_port'))
-        self._secrets = self.load_secrets()
+        self._secrets = self.load_secrets(add_path=kwargs.get('secrets'))
         self._login, self._password = list(self.secrets.get(self.tracker_id, {None: None}).items())[0]
         if self._login and self._password:
             self._get_auth()

@@ -947,6 +947,8 @@ class ArgsParser:
                                  help='torrserver url')
         self.parser.add_argument('--ts_port', action='store', dest='ts_port', type=int, default=8090,
                                  help='torrserver port')
+        self.parser.add_argument('--secrets', action='store', dest='secrets', type=str, default='',
+                                 help='path to secrets file')
         self.parser.add_argument('--litrcc', action='store', dest='litrcc', type=str, default='',
                                  help='feed uuid from litr.cc')
         self.parser.add_argument('--rutor', action='store_true', dest='rutor', default=False,

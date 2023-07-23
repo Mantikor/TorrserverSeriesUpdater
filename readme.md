@@ -10,9 +10,9 @@
 
 Доступны следующие режимы:
 
-1. **--ts_url**, TorrServer url/ip.
-2. **--ts_port**, TorrServer порт.
-3. **--secrets**, путь к файлу secrets.
+1. **_--ts_url_**, TorrServer url/ip.
+2. **_--ts_port_**, TorrServer порт.
+3. **_--secrets_**, путь к файлу secrets.
 4. **_--kinozal_**, обновление торрентов напрямую с kinozal.tv(guru)(me) (нужна регистрация и логин/пароль прописать в [файл secrets](#файл-с-данными-для-аутентификации)).
 5. **_--rutor_**, обновление торрентов напрямую с rutor.info(is) (регистрации не нужна).
 6. **_--nnmclub_**, обновление торрентов напрямую с nnmclub.to (регистрации не нужна).
@@ -38,7 +38,7 @@
 
 ### Файл с данными для аутентификации
 
-Файл формата json и с названием **secrets**, в папке рядом с исполняемым файлом, поддерживается аутентификация для Torrserver и Kinozal.tv.
+Файл формата json и с названием **secrets**, в папке рядом с исполняемым файлом или используйте параметр **--secrets** PATH_TO_FOLDER_WITH_SECRETS, поддерживается аутентификация для TorrServer и Kinozal.tv.
 
 Пример содержимого:
 
@@ -72,9 +72,9 @@
 
 There are following modes are available:
 
-1. **--ts_url**, TorrServer url/ip.
-2. **--ts_port**, TorrServer port.
-3. **--secrets**, path to secrets file.
+1. **_--ts_url_**, TorrServer url/ip.
+2. **_--ts_port_**, TorrServer port.
+3. **_--secrets_**, path to secrets file.
 4. **_--kinozal_**, kinozal.tv direct torrents update (need registration and user/password in [secrets-file](#file-with-authentication-data)).
 5. **_--rutor_**, rutor.info direct torrents update (no registration needed).
 6. **_--nnmclub_**, nnmclub.to direct torrents update (no registration needed).
@@ -97,7 +97,7 @@ The program is distributed as is, bugs and suggestions for improvement you can a
 
 ### File with authentication data
 
-Json-format file with name **secrets**, in the folder with executable binary file, supported authentication for Torrserver and Kinozal.tv.
+Json-format file with name **secrets**, in the folder with executable binary file or use parameter **--secrets** PATH_TO_FOLDER_WITH_SECRETS, supported authentication for TorrServer and Kinozal.tv.
 
 Sample content:
 
@@ -145,22 +145,22 @@ python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PO
 
 #### Run update from litr.cc
 ```
-sudo docker run --rm torrserver_series_updater:latest python series_updater.py --litrcc RSS_FEED_UUID --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+sudo docker run --rm mantik0r/torrserver_series_updater:latest python series_updater.py --litrcc RSS_FEED_UUID --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
 #### Run update from rutor.info
 ```
-sudo docker run --rm torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+sudo docker run --rm mantik0r/torrserver_series_updater:latest python series_updater.py --rutor --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
 #### Run update from nnmclub.to
 ```
-sudo docker run --rm torrserver_series_updater:latest python series_updater.py --nnmclub --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+sudo docker run --rm mantik0r/torrserver_series_updater:latest python series_updater.py --nnmclub --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
 #### Run cleanup mode
 ```
-sudo docker run --rm torrserver_series_updater:latest python series_updater.py --cleanup --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
+sudo docker run --rm mantik0r/torrserver_series_updater:latest python series_updater.py --cleanup --ts_url TORRSERVER_URL --ts_port TORRSERVER_PORT
 ```
 
 **RSS_FEED_UUID**, like as 21100112-ffff-aaaa-cccc-e00110011fff - litr.cc RSS-feed identifier

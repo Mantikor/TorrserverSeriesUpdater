@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.11.2'
+__version__ = '0.11.3'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -105,12 +105,13 @@ class TorrentsSource(object):
         """
         search_paths = ['./', os.path.dirname(os.path.abspath(__file__)),
                         os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))]
-        if add_path:
-            search_paths.insert(0, add_path)
         if getattr(sys, 'frozen', False):
             search_paths.append(os.path.dirname(sys.executable))
+        search_paths = list(set(search_paths))
+        if add_path:
+            search_paths.insert(0, add_path)
         logging.debug(f'Search paths: {search_paths}')
-        for search_path in set(search_paths):
+        for search_path in search_paths:
             full_path = os.path.join(search_path, filename)
             if os.path.isfile(full_path):
                 with open(full_path, mode='r', encoding='utf-8') as secrets_file:

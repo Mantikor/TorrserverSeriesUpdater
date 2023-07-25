@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.11.4'
+__version__ = '0.11.5'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -732,7 +732,7 @@ class AniDub(TorrentsSource):
             for f_link in file_links:
                 logging.debug(f'Link: {f_link}')
                 torrent_file = self.server_request(url=f_link)
-                if torrent_file:
+                if torrent_file and (torrent_file.status_code == 200):
                     tf = TorrentFile(file_content=torrent_file.content)
                     file_torrent_name = tf.get_name()
                     logging.debug(f'File  torrent name: {file_torrent_name}')
@@ -800,11 +800,14 @@ class Kinozal(AniDub):
             resp = self._get_auth()
             self._check_auth(resp)
         else:
-            logging.warning(f'Auth problem: login: {self._login}, password: {self._password}, url: {self._login_url}')
+            logging.warning(f'Auth problem: login: {self._login},'
+                            f' password: {"*" * len(self._password) if self._password else self._password},'
+                            f' url: {self._login_url}')
 
     def _get_auth(self):
         data = {'username': self._login, 'password': self._password, 'returnto': ''}
-        logging.debug(f'login: {self._login}, password: {self._password}')
+        logging.debug(f'login: {self._login},'
+                      f' password: {"*" * len(self._password) if self._password else self._password}')
         return self._server_request(r_type='post', url=self._login_url, data=data, headers={})
 
     def _check_auth(self, resp):

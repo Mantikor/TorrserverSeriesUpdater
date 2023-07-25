@@ -33,7 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.11.3'
+__version__ = '0.11.4'
 
 
 logging.basicConfig(level=logging.INFO,
@@ -633,19 +633,20 @@ class Updater(TorrentsSource):
 
     def check_updates(self, only_new=True):
         releases = self._get_latest_releases()
-        ver = releases.get('tag_name')
-        comment = releases.get('name')
-        new_version = self.is_there_new_version(remote_v=ver)
-        if new_version:
-            logging.info(f'Found new release: {ver}')
-            logging.info(f'{comment}')
-        elif not only_new:
-            logging.info(f'Current version on github: {ver}')
-            logging.info(f'{comment}')
-            r_assets = releases.get('assets', list())
-            for asset in r_assets:
-                download_url = asset.get('browser_download_url')
-                logging.info(f'{download_url}')
+        if releases:
+            ver = releases.get('tag_name')
+            comment = releases.get('name')
+            new_version = self.is_there_new_version(remote_v=ver)
+            if new_version:
+                logging.info(f'Found new release: {ver}')
+                logging.info(f'{comment}')
+            elif not only_new:
+                logging.info(f'Current version on github: {ver}')
+                logging.info(f'{comment}')
+                r_assets = releases.get('assets', list())
+                for asset in r_assets:
+                    download_url = asset.get('browser_download_url')
+                    logging.info(f'{download_url}')
 
     def check_scheduled_updates(self, schedule):
         dt = datetime.now()

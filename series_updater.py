@@ -1045,7 +1045,7 @@ def setup_logging(to_file: bool = False, debug: bool = False, filename: str = 't
 
 def main():
 
-    desc = f'Awesome series updater for TorrServer, (c) 2023 Mantikor, version {__version__}'
+    desc = f'Awesome series updater for TorrServer, (c) 2023-2025 Mantikor, version {__version__}'
 
     ts = ArgsParser(desc=desc, def_settings_file=None)
     setup_logging(to_file=ts.args.file, debug=ts.args.debug)

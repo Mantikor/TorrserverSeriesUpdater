@@ -958,6 +958,8 @@ class ArgsParser:
             help='Cleanup mode: merge separate torrents with different episodes for same series to one torrent')
         self.parser.add_argument('--debug', action='store_true', dest='debug', default=False,
                                  help='Enable DEBUG log level')
+        self.parser.add_argument('--file', action='store_true', dest='file', default=False,
+                                 help='Enable logging to file')
 
     @property
     def args(self):
@@ -1046,7 +1048,7 @@ def main():
     desc = f'Awesome series updater for TorrServer, (c) 2023 Mantikor, version {__version__}'
 
     ts = ArgsParser(desc=desc, def_settings_file=None)
-    setup_logging(to_file=True, debug=ts.args.debug)
+    setup_logging(to_file=ts.args.file, debug=ts.args.debug)
     logging.info(desc)
 
     if ts.args.settings:

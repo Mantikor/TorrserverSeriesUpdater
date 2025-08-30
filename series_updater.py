@@ -33,13 +33,7 @@ from datetime import datetime
 from lxml import html
 
 
-__version__ = '0.11.5'
-
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s - %(message)s',
-                    handlers=[logging.StreamHandler()]
-                    )
+__version__ = '0.11.6'
 
 RUTOR = {'rutor_id': ['rutor.info', 'rutor.is'], 'sep': '/'}
 NNMCLUB = {'nnmclub_id': ['nnmclub.to'], 'sep': '='}
@@ -71,27 +65,6 @@ class TorrentsSource(object):
 
     def _get_auth(self):
         self._session.auth = (self._login, self._password)
-
-    def add_logger_handler(self, debug=False):
-        handlers = [logging.StreamHandler()]
-        if debug:
-            log_level = logging.DEBUG
-        else:
-            log_level = logging.INFO
-        formatter = logging.Formatter('%(asctime)s %(levelname)s [%(funcName)s] - %(message)s')
-        logging.getLogger().setLevel(log_level)
-        for handler in handlers:
-            if handler == 'file':
-                log_path = '/var/log/'
-                prefix = self.__class__.__name__
-                log_size = 2097152
-                log_count = 2
-                log_file = os.path.join(log_path, '_'.join([prefix, '.log']))
-                file_handler = RotatingFileHandler(log_file, mode='a', maxBytes=log_size, backupCount=log_count,
-                                                   encoding='utf-8', delay=False)
-                file_handler.setLevel(log_level)
-                file_handler.setFormatter(formatter)
-                logging.getLogger(prefix).addHandler(file_handler)
 
     @property
     def secrets(self):
@@ -1041,19 +1014,44 @@ def update_tracker_torrents(tracker, tracker_class, torrserver):
                 logging.info(f'{t_title}')
                 logging.info(f'No updates found: {t_hash}')
 
+def setup_logging(to_file: bool = False, debug: bool = False, filename: str = 'ts_series_updater.log'):
+    """
+    Настройка логирования.
+
+    :param to_file: включить логирование в файл (по умолчанию False)
+    :param debug: включить режим DEBUG (по умолчанию False)
+    :param filename: имя файла лога (если включено логирование в файл)
+    """
+    log_level = logging.DEBUG if debug else logging.INFO
+    handlers = []
+
+    # вывод в консоль всегда
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
+    handlers.append(console_handler)
+
+    # опционально — лог в файл
+    if to_file:
+        filename = os.path.join('/var/log', filename)
+        file_handler = RotatingFileHandler(filename, maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
+        handlers.append(file_handler)
+
+    logging.basicConfig(level=log_level, handlers=handlers)
 
 def main():
+
     desc = f'Awesome series updater for TorrServer, (c) 2023 Mantikor, version {__version__}'
-    logging.info(desc)
+
     ts = ArgsParser(desc=desc, def_settings_file=None)
+    setup_logging(to_file=True, debug=ts.args.debug)
+    logging.info(desc)
+
     if ts.args.settings:
         # ToDO: add settings flow
         settings = Config(filename=ts.args.settings)
-
-    if ts.args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-        logging.getLogger().handlers[0].setFormatter(
-            logging.Formatter('%(asctime)s %(levelname)s [%(funcName)s] - %(message)s'))
 
     version = Updater(schedule=2)
     if ts.args.version:

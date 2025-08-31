@@ -44,7 +44,7 @@ jobs:
         run: pyinstaller --onefile --name=torrserver_series_updater-${{ matrix.os }} series_updater.py
 
       - name: Deploy artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: torrserver_series_updater-${{ matrix.os }}
           path: dist/torrserver_series_updater-${{ matrix.os }}*
